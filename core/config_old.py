@@ -1,6 +1,6 @@
 """
 Configuration management for XCELFI LP Hedge application.
-Handles loading environment variables and Streamlit secrets.
+Handles loading environment variables and determining operation mode.
 """
 import os
 import json
@@ -10,30 +10,6 @@ from pydantic import BaseModel, Field
 
 # Load environment variables
 load_dotenv()
-
-# Try to import streamlit for secrets (only available when running in Streamlit)
-try:
-    import streamlit as st
-    HAS_STREAMLIT = True
-except ImportError:
-    HAS_STREAMLIT = False
-
-
-def get_config_value(key: str, default: str = "") -> str:
-    """
-    Get configuration value from Streamlit secrets or environment variables.
-    
-    Priority: Streamlit secrets > Environment variables > Default
-    """
-    # Try Streamlit secrets first
-    if HAS_STREAMLIT and hasattr(st, 'secrets'):
-        try:
-            return st.secrets.get(key, os.getenv(key, default))
-        except Exception:
-            pass
-    
-    # Fall back to environment variables
-    return os.getenv(key, default)
 
 
 class AppConfig(BaseModel):
@@ -105,10 +81,10 @@ class AppConfig(BaseModel):
 
 
 def load_config() -> AppConfig:
-    """Load configuration from Streamlit secrets or environment variables."""
+    """Load configuration from environment variables."""
     
     # Parse AUTH_USERS_JSON
-    auth_users_json = get_config_value("AUTH_USERS_JSON", "{}")
+    auth_users_json = os.getenv("AUTH_USERS_JSON", "{}")
     try:
         auth_users = json.loads(auth_users_json)
     except json.JSONDecodeError:
@@ -116,44 +92,44 @@ def load_config() -> AppConfig:
     
     # Get optional fields (return None if empty string)
     def get_optional(key: str) -> Optional[str]:
-        value = get_config_value(key, "")
+        value = os.getenv(key, "")
         return value if value else None
     
     config = AppConfig(
-        app_env=get_config_value("APP_ENV", "staging"),
-        streamlit_secret_key=get_config_value("STREAMLIT_SECRET_KEY", "default-secret-key"),
+        app_env=os.getenv("APP_ENV", "staging"),
+        streamlit_secret_key=os.getenv("STREAMLIT_SECRET_KEY", "default-secret-key"),
         auth_users=auth_users,
         
-        wallet_public_address=get_config_value("WALLET_PUBLIC_ADDRESS", ""),
+        wallet_public_address=os.getenv("WALLET_PUBLIC_ADDRESS", ""),
         wallet_private_key=get_optional("WALLET_PRIVATE_KEY"),
         
-        base_rpc_url=get_config_value("BASE_RPC_URL", "https://mainnet.base.org"),
-        aerodrome_subgraph_url=get_config_value("AERODROME_SUBGRAPH_URL", ""),
-        aerodrome_router=get_config_value("AERODROME_ROUTER", ""),
-        aerodrome_pool_address=get_config_value("AERODROME_POOL_ADDRESS", ""),
+        base_rpc_url=os.getenv("BASE_RPC_URL", "https://mainnet.base.org"),
+        aerodrome_subgraph_url=os.getenv("AERODROME_SUBGRAPH_URL", ""),
+        aerodrome_router=os.getenv("AERODROME_ROUTER", ""),
+        aerodrome_pool_address=os.getenv("AERODROME_POOL_ADDRESS", ""),
         
         hyperliquid_api_key=get_optional("HYPERLIQUID_API_KEY"),
         hyperliquid_api_secret=get_optional("HYPERLIQUID_API_SECRET"),
-        hyperliquid_base_url=get_config_value("HYPERLIQUID_BASE_URL", "https://api.hyperliquid.xyz"),
+        hyperliquid_base_url=os.getenv("HYPERLIQUID_BASE_URL", "https://api.hyperliquid.xyz"),
         
-        watch_interval_min=int(get_config_value("WATCH_INTERVAL_MIN", "10")),
-        cron_full_check_hours=int(get_config_value("CRON_FULL_CHECK_HOURS", "12")),
-        range_total=float(get_config_value("RANGE_TOTAL", "0.30")),
-        recenter_trigger=float(get_config_value("RECENTER_TRIGGER", "0.01")),
-        hysteresis_reentry=float(get_config_value("HYSTERESIS_REENTRY", "0.002")),
-        slippage_bps=int(get_config_value("SLIPPAGE_BPS", "20")),
-        gas_cap_native=float(get_config_value("GAS_CAP_NATIVE", "0.01")),
-        cooldown_hours=int(get_config_value("COOLDOWN_HOURS", "2")),
+        watch_interval_min=int(os.getenv("WATCH_INTERVAL_MIN", "10")),
+        cron_full_check_hours=int(os.getenv("CRON_FULL_CHECK_HOURS", "12")),
+        range_total=float(os.getenv("RANGE_TOTAL", "0.30")),
+        recenter_trigger=float(os.getenv("RECENTER_TRIGGER", "0.01")),
+        hysteresis_reentry=float(os.getenv("HYSTERESIS_REENTRY", "0.002")),
+        slippage_bps=int(os.getenv("SLIPPAGE_BPS", "20")),
+        gas_cap_native=float(os.getenv("GAS_CAP_NATIVE", "0.01")),
+        cooldown_hours=int(os.getenv("COOLDOWN_HOURS", "2")),
         
-        reserve_usdc_pct=float(get_config_value("RESERVE_USDC_PCT", "0.01")),
-        reserve_eth_gas_pct=float(get_config_value("RESERVE_ETH_GAS_PCT", "0.01")),
-        usdc_cex_min_pct=float(get_config_value("USDC_CEX_MIN_PCT", "0.003")),
-        usdc_cex_target_pct=float(get_config_value("USDC_CEX_TARGET_PCT", "0.006")),
-        eth_gas_min=float(get_config_value("ETH_GAS_MIN", "0.05")),
-        eth_gas_target=float(get_config_value("ETH_GAS_TARGET", "0.10")),
+        reserve_usdc_pct=float(os.getenv("RESERVE_USDC_PCT", "0.01")),
+        reserve_eth_gas_pct=float(os.getenv("RESERVE_ETH_GAS_PCT", "0.01")),
+        usdc_cex_min_pct=float(os.getenv("USDC_CEX_MIN_PCT", "0.003")),
+        usdc_cex_target_pct=float(os.getenv("USDC_CEX_TARGET_PCT", "0.006")),
+        eth_gas_min=float(os.getenv("ETH_GAS_MIN", "0.05")),
+        eth_gas_target=float(os.getenv("ETH_GAS_TARGET", "0.10")),
         
-        target_lp_pct=float(get_config_value("TARGET_LP_PCT", "0.74")),
-        target_short_pct=float(get_config_value("TARGET_SHORT_PCT", "0.24")),
+        target_lp_pct=float(os.getenv("TARGET_LP_PCT", "0.74")),
+        target_short_pct=float(os.getenv("TARGET_SHORT_PCT", "0.24")),
     )
     
     return config
