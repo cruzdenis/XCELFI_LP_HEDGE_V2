@@ -1,6 +1,7 @@
 """
 Uniswap V3 Integration - Busca posições LP via Subgraph
 Suporta múltiplas redes (Base, Arbitrum, Ethereum, Optimism, Polygon)
+Usa The Graph Gateway para redes que requerem API key
 """
 
 import requests
@@ -8,13 +9,19 @@ from typing import List, Dict, Optional
 from dataclasses import dataclass
 
 
-# Uniswap V3 Subgraph URLs para diferentes redes
-UNISWAP_SUBGRAPHS = {
+# Subgraph IDs para The Graph Gateway (redes que requerem API key)
+GATEWAY_SUBGRAPH_IDS = {
+    "arbitrum": "FQ6JYszEKApsBpAmiHesRsd9Ygc6mzmpNRANeVQFYoVX",
+    "optimism": "Cghf4LfVqPiFw6fp6Y5X5Ubc8UpmUhSfJL82zwiBFLaj",
+    "polygon": "3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm",
+}
+
+# Endpoints públicos que não requerem API key
+PUBLIC_SUBGRAPHS = {
     "base": "https://api.studio.thegraph.com/query/48211/uniswap-v3-base/version/latest",
-    "arbitrum": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-arbitrum",
     "ethereum": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
-    "optimism": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-optimism",
-    "polygon": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-polygon"
+    "celo": "https://api.thegraph.com/subgraphs/name/jesse-sawa/uniswap-celo",
+    "bsc": "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-bsc"
 }
 
 
@@ -38,16 +45,21 @@ class UniswapPosition:
 class UniswapClient:
     """Cliente para interagir com Uniswap V3 via Subgraph em múltiplas redes"""
     
-    def __init__(self, wallet_address: str, networks: List[str] = None):
+    def __init__(self, wallet_address: str, networks: List[str] = None, graph_api_key: str = None):
         """
         Inicializa o cliente Uniswap
         
         Args:
             wallet_address: Endereço da wallet para buscar posições
             networks: Lista de redes para buscar (default: todas disponíveis)
+            graph_api_key: API key do The Graph Gateway (necessária para Arbitrum, Optimism, Polygon)
         """
         self.wallet_address = wallet_address.lower()
-        self.networks = networks or list(UNISWAP_SUBGRAPHS.keys())
+        self.graph_api_key = graph_api_key
+        
+        # Todas as redes disponíveis
+        all_networks = list(PUBLIC_SUBGRAPHS.keys()) + list(GATEWAY_SUBGRAPH_IDS.keys())
+        self.networks = networks or all_networks
     
     def get_positions(self) -> List[UniswapPosition]:
         """
@@ -68,6 +80,32 @@ class UniswapClient:
         
         return all_positions
     
+    def _get_subgraph_url(self, network: str) -> Optional[str]:
+        """
+        Retorna a URL do subgraph para uma rede específica
+        
+        Args:
+            network: Nome da rede
+            
+        Returns:
+            URL do subgraph ou None se não disponível
+        """
+        # Verifica se é uma rede pública
+        if network in PUBLIC_SUBGRAPHS:
+            return PUBLIC_SUBGRAPHS[network]
+        
+        # Verifica se é uma rede que requer Gateway
+        if network in GATEWAY_SUBGRAPH_IDS:
+            if not self.graph_api_key:
+                print(f"⚠️ {network.capitalize()} requer The Graph API key. Configure nas configurações.")
+                return None
+            
+            subgraph_id = GATEWAY_SUBGRAPH_IDS[network]
+            return f"https://gateway.thegraph.com/api/{self.graph_api_key}/subgraphs/id/{subgraph_id}"
+        
+        print(f"Rede '{network}' não suportada")
+        return None
+    
     def _get_positions_from_network(self, network: str) -> List[UniswapPosition]:
         """
         Busca posições LP de uma rede específica
@@ -78,7 +116,7 @@ class UniswapClient:
         Returns:
             Lista de posições da rede especificada
         """
-        subgraph_url = UNISWAP_SUBGRAPHS.get(network)
+        subgraph_url = self._get_subgraph_url(network)
         if not subgraph_url:
             return []
         
@@ -126,10 +164,11 @@ class UniswapClient:
                     "query": query,
                     "variables": {"owner": self.wallet_address}
                 },
-                timeout=10
+                timeout=15
             )
             
             if response.status_code != 200:
+                print(f"Erro HTTP {response.status_code} ao consultar {network}")
                 return []
             
             data = response.json()

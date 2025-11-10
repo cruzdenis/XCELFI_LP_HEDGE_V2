@@ -125,9 +125,13 @@ with main_tabs[0]:
         # Get configured networks from settings
         configured_networks = saved_settings.get("uniswap_networks", ["base", "arbitrum", "ethereum", "optimism", "polygon"])
         
+        # Get The Graph API key from settings
+        graph_api_key = saved_settings.get("graph_api_key", "")
+        
         uniswap_client = UniswapClient(
             wallet_address=wallet_addr,
-            networks=configured_networks
+            networks=configured_networks,
+            graph_api_key=graph_api_key if graph_api_key else None
         )
         
         # Get positions
@@ -278,6 +282,24 @@ with main_tabs[1]:
     
     st.caption("💡 Revert Finance aggregates data from these same Uniswap V3 networks. By selecting multiple networks, you'll see all your positions just like in Revert Finance.")
     
+    st.write("### The Graph API Key")
+    
+    graph_api_key = st.text_input(
+        "The Graph API Key",
+        value=current_settings.get("graph_api_key", ""),
+        type="password",
+        help="Required for Arbitrum, Optimism, and Polygon networks. Get your free API key at https://thegraph.com/studio/",
+        key="cfg_graph_api_key"
+    )
+    
+    if not graph_api_key and any(net in selected_networks for net in ["arbitrum", "optimism", "polygon"]):
+        st.warning("⚠️ Arbitrum, Optimism, and Polygon require The Graph API key. Positions from these networks won't be shown without it.")
+    
+    if graph_api_key:
+        st.success("✅ The Graph API key configured! All networks will be accessible.")
+    
+    st.caption("🔗 [Get your free API key at The Graph Studio](https://thegraph.com/studio/) (100k queries/month free)")
+    
     st.markdown("---")
     
     st.write("### Hyperliquid Configuration")
@@ -303,6 +325,7 @@ with main_tabs[1]:
         new_settings = current_settings.copy()
         new_settings["wallet_public_address"] = wallet_address
         new_settings["uniswap_networks"] = selected_networks
+        new_settings["graph_api_key"] = graph_api_key
         new_settings["hyperliquid_api_key"] = hl_api_key
         new_settings["hyperliquid_api_secret"] = hl_api_secret
         

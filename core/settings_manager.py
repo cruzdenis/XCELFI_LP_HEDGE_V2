@@ -120,6 +120,7 @@ class SettingsManager:
             
             # Uniswap V3 Networks
             "uniswap_networks": ["base", "arbitrum", "ethereum", "optimism", "polygon"],  # Redes para buscar posições LP
+            "graph_api_key": "",  # The Graph API key para acessar redes que requerem Gateway
             
             # Strategy Parameters
             "recenter_trigger_pct": 1.0,
