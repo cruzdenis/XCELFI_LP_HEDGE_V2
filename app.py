@@ -10,6 +10,7 @@ from core.config import config
 from core.settings_manager import SettingsManager
 from integrations.hyperliquid import HyperliquidClient
 from integrations.uniswap import UniswapClient
+from core.delta_neutral import DeltaNeutralAnalyzer
 
 # Page configuration
 st.set_page_config(
@@ -157,6 +158,91 @@ with main_tabs[0]:
     except Exception as e:
         st.error(f"Error loading Uniswap data: {e}")
         st.info("Make sure you have configured your wallet address in Settings")
+    
+    st.markdown("---")
+    st.markdown("---")
+    
+    # DELTA NEUTRAL ANALYSIS
+    st.subheader("🎯 Delta Neutral Analysis")
+    
+    try:
+        # Initialize analyzer
+        analyzer = DeltaNeutralAnalyzer(tolerance_pct=5.0)
+        
+        # Extract LP positions (combine all sources)
+        all_lp_positions = []
+        
+        # Add Uniswap positions if available
+        if 'uni_positions' in locals() and uni_positions:
+            for pos in uni_positions:
+                all_lp_positions.append({
+                    'token0_symbol': pos.token0_symbol,
+                    'token0_amount': pos.token0_amount,
+                    'token1_symbol': pos.token1_symbol,
+                    'token1_amount': pos.token1_amount
+                })
+        
+        # Extract LP token positions
+        lp_token_positions = analyzer.extract_lp_positions(all_lp_positions)
+        
+        # Extract short positions from Hyperliquid
+        hl_positions_dict = []
+        if 'positions' in locals() and positions:
+            for pos in positions:
+                hl_positions_dict.append({
+                    'coin': pos.symbol,
+                    'szi': pos.size
+                })
+        
+        short_positions = analyzer.extract_short_positions(hl_positions_dict)
+        
+        # Compare and generate suggestions
+        suggestions = analyzer.compare_positions(lp_token_positions, short_positions)
+        
+        if suggestions:
+            # Display summary
+            balanced_count = sum(1 for s in suggestions if s.suggested_action == "balanced")
+            needs_adjustment_count = len(suggestions) - balanced_count
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Balanced Positions", balanced_count)
+            with col2:
+                st.metric("Needs Adjustment", needs_adjustment_count)
+            
+            st.markdown("---")
+            
+            # Display detailed suggestions
+            for suggestion in suggestions:
+                if suggestion.suggested_action == "balanced":
+                    st.success(f"✅ **{suggestion.token}**: Balanced")
+                    st.caption(f"LP: {suggestion.current_lp:.6f} | Short: {suggestion.current_short:.6f}")
+                elif suggestion.suggested_action == "increase_short":
+                    st.warning(f"⚠️ **{suggestion.token}**: Need to INCREASE SHORT")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Current LP", f"{suggestion.current_lp:.6f}")
+                    with col2:
+                        st.metric("Current Short", f"{suggestion.current_short:.6f}")
+                    with col3:
+                        st.metric("Adjustment Needed", f"+{suggestion.adjustment_amount:.6f}", delta=f"+{suggestion.adjustment_amount:.6f}")
+                elif suggestion.suggested_action == "decrease_short":
+                    st.warning(f"⚠️ **{suggestion.token}**: Need to DECREASE SHORT")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Current LP", f"{suggestion.current_lp:.6f}")
+                    with col2:
+                        st.metric("Current Short", f"{suggestion.current_short:.6f}")
+                    with col3:
+                        st.metric("Adjustment Needed", f"-{suggestion.adjustment_amount:.6f}", delta=f"-{suggestion.adjustment_amount:.6f}")
+                
+                st.markdown("---")
+        else:
+            st.info("No positions to compare. Configure your wallet and ensure you have both LP positions and Hyperliquid shorts.")
+    
+    except Exception as e:
+        st.error(f"Error in Delta Neutral Analysis: {e}")
+        st.info("Make sure you have configured your wallet address and have active positions")
 
 # TAB 2: CONFIGURAÇÕES
 with main_tabs[1]:
