@@ -118,6 +118,9 @@ class SettingsManager:
             "hyperliquid_api_secret": "",
             "hyperliquid_wallet_address": "",
             
+            # Uniswap V3 Networks
+            "uniswap_networks": ["base", "arbitrum", "ethereum", "optimism", "polygon"],  # Redes para buscar posições LP
+            
             # Strategy Parameters
             "recenter_trigger_pct": 1.0,
             "recenter_hysteresis_pct": 0.2,

@@ -119,26 +119,26 @@ with main_tabs[0]:
     st.markdown("---")
     
     # UNISWAP V3 POSITIONS
-    st.subheader("Uniswap V3 LP Positions")
+    st.subheader("Uniswap V3 LP Positions (Multi-Network)")
     
     try:
-        # Use Base network subgraph
-        uniswap_subgraph = "https://api.studio.thegraph.com/query/48211/uniswap-v3-base/version/latest"
+        # Get configured networks from settings
+        configured_networks = saved_settings.get("uniswap_networks", ["base", "arbitrum", "ethereum", "optimism", "polygon"])
         
         uniswap_client = UniswapClient(
-            subgraph_url=uniswap_subgraph,
-            wallet_address=wallet_addr
+            wallet_address=wallet_addr,
+            networks=configured_networks
         )
         
         # Get positions
         uni_positions = uniswap_client.get_positions()
         
         if uni_positions:
-            st.write(f"**Active LP Positions:** {len(uni_positions)}")
+            st.write(f"**Active LP Positions:** {len(uni_positions)} across {len(set(p.network for p in uni_positions))} network(s)")
             
             for pos in uni_positions:
                 status_emoji = "✅" if pos.in_range else "⚠️"
-                with st.expander(f"{status_emoji} {pos.token0_symbol}/{pos.token1_symbol} - Fee: {pos.fee_tier}%"):
+                with st.expander(f"{status_emoji} [{pos.network}] {pos.token0_symbol}/{pos.token1_symbol} - Fee: {pos.fee_tier}%"):
                     col1, col2 = st.columns(2)
                     
                     with col1:
@@ -153,7 +153,8 @@ with main_tabs[0]:
                     
                     st.caption(f"Position ID: {pos.id}")
         else:
-            st.info("No Uniswap V3 positions found on Base network")
+            st.info(f"No Uniswap V3 positions found on configured networks: {', '.join(configured_networks)}")
+            st.caption("Tip: You can configure which networks to monitor in the Settings tab")
     
     except Exception as e:
         st.error(f"Error loading Uniswap data: {e}")
@@ -260,6 +261,25 @@ with main_tabs[1]:
         key="cfg_wallet_address"
     )
     
+    st.write("### Uniswap V3 Networks")
+    
+    st.write("Select which networks to monitor for LP positions:")
+    
+    available_networks = ["base", "arbitrum", "ethereum", "optimism", "polygon"]
+    current_networks = current_settings.get("uniswap_networks", available_networks)
+    
+    selected_networks = st.multiselect(
+        "Networks",
+        options=available_networks,
+        default=current_networks,
+        help="Select one or more networks to monitor. This is equivalent to what Revert Finance shows.",
+        key="cfg_uniswap_networks"
+    )
+    
+    st.caption("💡 Revert Finance aggregates data from these same Uniswap V3 networks. By selecting multiple networks, you'll see all your positions just like in Revert Finance.")
+    
+    st.markdown("---")
+    
     st.write("### Hyperliquid Configuration")
     
     hl_api_key = st.text_input(
@@ -282,6 +302,7 @@ with main_tabs[1]:
         # Update settings
         new_settings = current_settings.copy()
         new_settings["wallet_public_address"] = wallet_address
+        new_settings["uniswap_networks"] = selected_networks
         new_settings["hyperliquid_api_key"] = hl_api_key
         new_settings["hyperliquid_api_secret"] = hl_api_secret
         
@@ -301,10 +322,13 @@ with main_tabs[1]:
     
     st.write(f"**Operation Mode:** {config.operation_mode}")
     st.write(f"**Wallet Address:** {display_settings.get('wallet_public_address', 'Not configured')}")
+    st.write(f"**Monitored Networks:** {', '.join(display_settings.get('uniswap_networks', []))}")
     st.write(f"**Hyperliquid URL:** {config.hyperliquid_base_url}")
     
     has_api_keys = bool(display_settings.get('hyperliquid_api_key') and display_settings.get('hyperliquid_api_secret'))
     st.write(f"**Has API Keys:** {'Yes' if has_api_keys else 'No'}")
+    
+    st.caption("💡 Tip: Revert Finance is just a UI that shows Uniswap V3 positions from multiple networks. This app does the same thing directly!")
     
     st.write(f"**Settings File:** data/user_settings.json")
 

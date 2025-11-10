@@ -1,10 +1,21 @@
 """
 Uniswap V3 Integration - Busca posições LP via Subgraph
+Suporta múltiplas redes (Base, Arbitrum, Ethereum, Optimism, Polygon)
 """
 
 import requests
 from typing import List, Dict, Optional
 from dataclasses import dataclass
+
+
+# Uniswap V3 Subgraph URLs para diferentes redes
+UNISWAP_SUBGRAPHS = {
+    "base": "https://api.studio.thegraph.com/query/48211/uniswap-v3-base/version/latest",
+    "arbitrum": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-arbitrum",
+    "ethereum": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
+    "optimism": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-optimism",
+    "polygon": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-polygon"
+}
 
 
 @dataclass
@@ -19,31 +30,58 @@ class UniswapPosition:
     fees_token0: float
     fees_token1: float
     pool_address: str
-    fee_tier: int
+    fee_tier: float
     in_range: bool
+    network: str  # Rede onde a posição está
 
 
 class UniswapClient:
-    """Cliente para interagir com Uniswap V3 via Subgraph"""
+    """Cliente para interagir com Uniswap V3 via Subgraph em múltiplas redes"""
     
-    def __init__(self, subgraph_url: str, wallet_address: str):
+    def __init__(self, wallet_address: str, networks: List[str] = None):
         """
         Inicializa o cliente Uniswap
         
         Args:
-            subgraph_url: URL do subgraph (Base ou Mainnet)
             wallet_address: Endereço da wallet para buscar posições
+            networks: Lista de redes para buscar (default: todas disponíveis)
         """
-        self.subgraph_url = subgraph_url
         self.wallet_address = wallet_address.lower()
+        self.networks = networks or list(UNISWAP_SUBGRAPHS.keys())
     
     def get_positions(self) -> List[UniswapPosition]:
         """
-        Busca todas as posições LP da wallet
+        Busca todas as posições LP da wallet em todas as redes configuradas
         
         Returns:
-            Lista de posições Uniswap
+            Lista de posições Uniswap de todas as redes
         """
+        all_positions = []
+        
+        for network in self.networks:
+            try:
+                network_positions = self._get_positions_from_network(network)
+                all_positions.extend(network_positions)
+            except Exception as e:
+                print(f"Erro ao buscar posições de {network}: {e}")
+                continue
+        
+        return all_positions
+    
+    def _get_positions_from_network(self, network: str) -> List[UniswapPosition]:
+        """
+        Busca posições LP de uma rede específica
+        
+        Args:
+            network: Nome da rede (base, arbitrum, ethereum, etc)
+            
+        Returns:
+            Lista de posições da rede especificada
+        """
+        subgraph_url = UNISWAP_SUBGRAPHS.get(network)
+        if not subgraph_url:
+            return []
+        
         query = """
         query ($owner: String!) {
           positions(where: {owner: $owner, liquidity_gt: "0"}) {
@@ -83,7 +121,7 @@ class UniswapClient:
         
         try:
             response = requests.post(
-                self.subgraph_url,
+                subgraph_url,
                 json={
                     "query": query,
                     "variables": {"owner": self.wallet_address}
@@ -97,6 +135,7 @@ class UniswapClient:
             data = response.json()
             
             if "errors" in data:
+                print(f"Erros GraphQL de {network}: {data['errors']}")
                 return []
             
             positions_data = data.get("data", {}).get("positions", [])
@@ -108,7 +147,7 @@ class UniswapClient:
                     token0 = pool["token0"]
                     token1 = pool["token1"]
                     
-                    # Calcular amounts (simplificado - valores depositados menos retirados)
+                    # Calcular amounts (valores depositados menos retirados)
                     token0_amount = (
                         float(pos["depositedToken0"]) - float(pos["withdrawnToken0"])
                     ) / (10 ** int(token0["decimals"]))
@@ -121,7 +160,7 @@ class UniswapClient:
                     fees_token0 = float(pos["collectedFeesToken0"]) / (10 ** int(token0["decimals"]))
                     fees_token1 = float(pos["collectedFeesToken1"]) / (10 ** int(token1["decimals"]))
                     
-                    # Verificar se está in range (simplificado)
+                    # Verificar se está in range
                     current_tick = int(pool["tick"])
                     tick_lower = int(pos["tickLower"]["tickIdx"])
                     tick_upper = int(pos["tickUpper"]["tickIdx"])
@@ -138,17 +177,20 @@ class UniswapClient:
                         fees_token1=fees_token1,
                         pool_address=pool["id"],
                         fee_tier=int(pool["feeTier"]) / 10000,  # Convert to percentage
-                        in_range=in_range
+                        in_range=in_range,
+                        network=network.capitalize()
                     )
                     
                     positions.append(position)
                     
-                except (KeyError, ValueError, TypeError):
+                except (KeyError, ValueError, TypeError) as e:
+                    print(f"Erro ao processar posição de {network}: {e}")
                     continue
             
             return positions
             
-        except Exception:
+        except Exception as e:
+            print(f"Erro de rede ao consultar {network}: {e}")
             return []
     
     def get_total_value_usd(self, positions: List[UniswapPosition], token_prices: Dict[str, float]) -> float:
