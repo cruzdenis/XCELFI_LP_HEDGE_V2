@@ -27,6 +27,10 @@ from strategies.recenter import RecenterStrategy
 # Import utils
 from utils.logs import LogManager
 
+# Import UI components
+from ui.settings_tab import render_settings_tab
+from core.settings_manager import SettingsManager
+
 # Page configuration
 st.set_page_config(
     page_title="XCELFI LP Hedge",
@@ -39,13 +43,18 @@ st.set_page_config(
 if 'initialized' not in st.session_state:
     st.session_state.initialized = False
     st.session_state.nav_calculator = NAVCalculator()
+    st.session_state.settings_manager = SettingsManager()
+    
+    # Load settings from file
+    user_settings = st.session_state.settings_manager.load_settings()
+    
     st.session_state.trigger_monitor = TriggerMonitor(
-        recenter_trigger=config.recenter_trigger,
-        hysteresis_reentry=config.hysteresis_reentry,
+        recenter_trigger=user_settings.get('recenter_trigger_pct', config.recenter_trigger),
+        hysteresis_reentry=user_settings.get('recenter_hysteresis_pct', config.hysteresis_reentry),
         cooldown_hours=config.cooldown_hours
     )
     st.session_state.pnl_tracker = PnLTracker()
-    st.session_state.auto_mode_enabled = False
+    st.session_state.auto_mode_enabled = user_settings.get('auto_execute_enabled', False)
 
 # Initialize auth manager
 auth_manager = AuthManager(config.auth_users)
@@ -138,8 +147,12 @@ with st.sidebar:
     if st.button("🔄 Refresh Data"):
         st.rerun()
 
-# Main content
-st.title("📊 Delta Neutral LP Hedge Dashboard")
+# Main content - Create tabs
+main_tabs = st.tabs(["📊 Dashboard", "⚙️ Configurações"])
+
+# TAB 1: DASHBOARD
+with main_tabs[0]:
+    st.title("📊 Delta Neutral LP Hedge Dashboard")
 
 # Get current data
 try:
@@ -552,6 +565,10 @@ with st.expander("⚠️ Recent Errors"):
     else:
         st.success("No errors logged")
 
-# Footer
-st.markdown("---")
-st.caption(f"XCELFI LP Hedge v2.0 | Mode: {config.operation_mode} | Last refresh: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    # Footer
+    st.markdown("---")
+    st.caption(f"XCELFI LP Hedge v2.0 | Mode: {config.operation_mode} | Last refresh: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+# TAB 2: CONFIGURAÇÕES
+with main_tabs[1]:
+    render_settings_tab(st.session_state.settings_manager)
