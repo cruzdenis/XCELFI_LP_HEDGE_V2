@@ -115,19 +115,10 @@ class AerodromeClient:
             PoolInfo or None if error
         """
         try:
-            # In a real implementation, this would query the pool contract
-            # For now, return mock data
-            return PoolInfo(
-                address=self.pool_address,
-                token0="0x4200000000000000000000000000000000000006",  # WETH on Base
-                token1="0x0000000000000000000000000000000000000000",  # Mock BTC
-                fee=3000,
-                tick=0,
-                sqrt_price_x96=0,
-                liquidity=1000000.0,
-                token0_symbol="ETH",
-                token1_symbol="BTC"
-            )
+            # TODO: Implement real pool contract query
+            # For now, return None to indicate no real data available
+            print("[INFO] Pool info not implemented - returning None")
+            return None
         except Exception as e:
             print(f"Error getting pool info: {e}")
             return None
@@ -140,24 +131,10 @@ class AerodromeClient:
             LPPosition or None if no position or error
         """
         try:
-            # In a real implementation, this would:
-            # 1. Query subgraph for positions owned by wallet_address
-            # 2. Get position details from NonfungiblePositionManager contract
-            # 3. Calculate unclaimed fees
-            
-            # For now, return mock data
-            return LPPosition(
-                token_id=12345,
-                liquidity=100000.0,
-                token0_amount=1.5,  # ETH
-                token1_amount=0.05,  # BTC
-                tick_lower=-887220,
-                tick_upper=887220,
-                unclaimed_fees0=0.001,
-                unclaimed_fees1=0.00001,
-                token0_symbol="ETH",
-                token1_symbol="BTC"
-            )
+            # TODO: Implement real position query via subgraph and contracts
+            # For now, return None to indicate no real data available
+            print(f"[INFO] LP position query not implemented for wallet {self.wallet_address} - returning None")
+            return None
         except Exception as e:
             print(f"Error getting LP position: {e}")
             return None
@@ -170,13 +147,10 @@ class AerodromeClient:
             Dictionary of token symbol -> balance
         """
         try:
-            # In a real implementation, this would query token contracts
-            # For now, return mock data
-            return {
-                "ETH": 0.5,
-                "BTC": 0.02,
-                "USDC": 1000.0
-            }
+            # TODO: Implement real balance query via token contracts
+            # For now, return empty dict to indicate no real data available
+            print(f"[INFO] Balance query not implemented for wallet {self.wallet_address} - returning empty")
+            return {}
         except Exception as e:
             print(f"Error getting balances: {e}")
             return {}

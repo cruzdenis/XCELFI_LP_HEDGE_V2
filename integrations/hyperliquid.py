@@ -117,29 +117,10 @@ class HyperliquidClient:
             List of Position objects
         """
         try:
-            # In a real implementation, this would query Hyperliquid API
-            # For now, return mock data
-            
-            return [
-                Position(
-                    symbol="BTC/USDC",
-                    size=-0.5,  # Short 0.5 BTC
-                    entry_price=45000.0,
-                    mark_price=44500.0,
-                    unrealized_pnl=250.0,
-                    margin=5000.0,
-                    leverage=4.5
-                ),
-                Position(
-                    symbol="ETH/USDC",
-                    size=-5.0,  # Short 5 ETH
-                    entry_price=2500.0,
-                    mark_price=2480.0,
-                    unrealized_pnl=100.0,
-                    margin=2500.0,
-                    leverage=5.0
-                )
-            ]
+            # TODO: Implement real Hyperliquid API query
+            # For now, return empty list to indicate no real data available
+            print(f"[INFO] Position query not implemented for wallet {self.wallet_address} - returning empty list")
+            return []
         except Exception as e:
             print(f"Error getting positions: {e}")
             return []
@@ -155,25 +136,10 @@ class HyperliquidClient:
             FundingInfo or None if error
         """
         try:
-            # In a real implementation, this would query Hyperliquid API
-            # For now, return mock data
-            
-            if "BTC" in symbol:
-                return FundingInfo(
-                    symbol=symbol,
-                    funding_rate=0.0001,  # 0.01% per 8h
-                    funding_rate_24h=0.0003,  # 0.03% per day
-                    next_funding_time=int(time.time()) + 3600
-                )
-            elif "ETH" in symbol:
-                return FundingInfo(
-                    symbol=symbol,
-                    funding_rate=0.00008,
-                    funding_rate_24h=0.00024,
-                    next_funding_time=int(time.time()) + 3600
-                )
-            else:
-                return None
+            # TODO: Implement real Hyperliquid API query
+            # For now, return None to indicate no real data available
+            print(f"[INFO] Funding info query not implemented for {symbol} - returning None")
+            return None
         except Exception as e:
             print(f"Error getting funding info: {e}")
             return None
@@ -189,15 +155,10 @@ class HyperliquidClient:
             Mark price or None if error
         """
         try:
-            # In a real implementation, this would query Hyperliquid API
-            # For now, return mock data
-            
-            if "BTC" in symbol:
-                return 45000.0
-            elif "ETH" in symbol:
-                return 2500.0
-            else:
-                return None
+            # TODO: Implement real Hyperliquid API query
+            # For now, return None to indicate no real data available
+            print(f"[INFO] Mark price query not implemented for {symbol} - returning None")
+            return None
         except Exception as e:
             print(f"Error getting mark price: {e}")
             return None

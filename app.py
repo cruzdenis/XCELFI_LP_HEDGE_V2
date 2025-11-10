@@ -170,9 +170,32 @@ try:
     btc_funding = hyperliquid_client.get_funding_info("BTC/USDC")
     eth_funding = hyperliquid_client.get_funding_info("ETH/USDC")
     
-    # Mock prices
-    eth_price = 2500.0
-    btc_price = 45000.0
+    # Check if we have any real data
+    has_data = lp_position is not None or len(hl_positions) > 0 or len(balances) > 0
+    
+    if not has_data:
+        st.warning("⚠️ **Nenhuma posição encontrada**")
+        st.info("""
+        **Como configurar:**
+        
+        1. Vá para a aba **⚙️ Configurações**
+        2. Na seção **🔐 Credenciais**, configure:
+           - Endereço público da sua wallet
+           - Endereços dos contratos Aerodrome (Pool, Router)
+           - Base RPC URL
+        3. Certifique-se de que sua wallet possui:
+           - Posições LP ativas na Aerodrome (pool ETH/BTC)
+           - Posições short na Hyperliquid
+        
+        **Nota:** O sistema está em modo somente leitura. Configure suas credenciais para ver suas posições reais.
+        """)
+        st.stop()
+    
+    # Get prices (TODO: implement real price feeds)
+    # For now, we need real prices to calculate NAV
+    # Without positions, we can't proceed
+    eth_price = 2500.0  # Placeholder
+    btc_price = 45000.0  # Placeholder
     
     # Calculate NAV
     lp_value = 0.0
