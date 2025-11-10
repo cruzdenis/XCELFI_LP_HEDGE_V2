@@ -7,9 +7,9 @@ from datetime import datetime
 
 # Import core modules
 from core.config import config
-from core.auth import AuthManager, render_login_page
 from core.settings_manager import SettingsManager
 from integrations.hyperliquid import HyperliquidClient
+from integrations.uniswap import UniswapClient
 
 # Page configuration
 st.set_page_config(
@@ -24,21 +24,6 @@ if 'settings_manager' not in st.session_state:
     st.session_state.settings_manager = SettingsManager()
 
 settings_manager = st.session_state.settings_manager
-
-# Initialize auth manager with fallback
-try:
-    auth_users = config.auth_users if config.auth_users else {
-        "admin": "$2b$12$vtRzZekTfubVv2u9G1ol3uV6UyUIGdskgTwtGhSpDmjh099inFtpW"
-    }
-    auth_manager = AuthManager(auth_users)
-    
-    # Check authentication
-    if not auth_manager.is_authenticated():
-        render_login_page(auth_manager)
-        st.stop()
-except Exception as e:
-    st.error(f"Authentication error: {e}")
-    st.stop()
 
 # Sidebar
 with st.sidebar:
@@ -55,14 +40,6 @@ with st.sidebar:
         st.success("✅ **Mode:** Full Execution")
     
     st.markdown("---")
-    
-    # User info
-    current_user = auth_manager.get_current_user()
-    st.write(f"👤 **User:** {current_user}")
-    
-    if st.button("🚪 Logout"):
-        auth_manager.logout()
-        st.rerun()
 
 # Main content
 st.title("📊 Delta Neutral LP Hedge Dashboard")
@@ -135,6 +112,50 @@ with main_tabs[0]:
     
     except Exception as e:
         st.error(f"Error loading Hyperliquid data: {e}")
+        st.info("Make sure you have configured your wallet address in Settings")
+    
+    st.markdown("---")
+    st.markdown("---")
+    
+    # UNISWAP V3 POSITIONS
+    st.subheader("Uniswap V3 LP Positions")
+    
+    try:
+        # Use Base network subgraph
+        uniswap_subgraph = "https://api.studio.thegraph.com/query/48211/uniswap-v3-base/version/latest"
+        
+        uniswap_client = UniswapClient(
+            subgraph_url=uniswap_subgraph,
+            wallet_address=wallet_addr
+        )
+        
+        # Get positions
+        uni_positions = uniswap_client.get_positions()
+        
+        if uni_positions:
+            st.write(f"**Active LP Positions:** {len(uni_positions)}")
+            
+            for pos in uni_positions:
+                status_emoji = "✅" if pos.in_range else "⚠️"
+                with st.expander(f"{status_emoji} {pos.token0_symbol}/{pos.token1_symbol} - Fee: {pos.fee_tier}%"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write(f"**{pos.token0_symbol} Amount:** {pos.token0_amount:.6f}")
+                        st.write(f"**{pos.token1_symbol} Amount:** {pos.token1_amount:.6f}")
+                        st.write(f"**Liquidity:** {pos.liquidity:,.0f}")
+                    
+                    with col2:
+                        st.write(f"**Fees {pos.token0_symbol}:** {pos.fees_token0:.6f}")
+                        st.write(f"**Fees {pos.token1_symbol}:** {pos.fees_token1:.6f}")
+                        st.write(f"**Status:** {'In Range' if pos.in_range else 'Out of Range'}")
+                    
+                    st.caption(f"Position ID: {pos.id}")
+        else:
+            st.info("No Uniswap V3 positions found on Base network")
+    
+    except Exception as e:
+        st.error(f"Error loading Uniswap data: {e}")
         st.info("Make sure you have configured your wallet address in Settings")
 
 # TAB 2: CONFIGURAÇÕES
