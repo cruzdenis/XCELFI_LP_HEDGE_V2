@@ -8,6 +8,7 @@ from datetime import datetime
 # Import core modules
 from core.config import config
 from core.auth import AuthManager, render_login_page
+from core.settings_manager import SettingsManager
 from integrations.hyperliquid import HyperliquidClient
 
 # Page configuration
@@ -17,6 +18,12 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Initialize settings manager
+if 'settings_manager' not in st.session_state:
+    st.session_state.settings_manager = SettingsManager()
+
+settings_manager = st.session_state.settings_manager
 
 # Initialize auth manager with fallback
 try:
@@ -67,13 +74,21 @@ main_tabs = st.tabs(["📊 Dashboard", "⚙️ Configurações"])
 with main_tabs[0]:
     st.subheader("Hyperliquid Positions")
     
+    # Load saved settings
+    saved_settings = settings_manager.load_settings()
+    
+    # Use saved settings if available, otherwise use config defaults
+    wallet_addr = saved_settings.get("wallet_public_address", config.wallet_public_address)
+    hl_key = saved_settings.get("hyperliquid_api_key", config.hyperliquid_api_key)
+    hl_secret = saved_settings.get("hyperliquid_api_secret", config.hyperliquid_api_secret)
+    
     # Initialize Hyperliquid client
     try:
         hyperliquid_client = HyperliquidClient(
             base_url=config.hyperliquid_base_url,
-            wallet_address=config.wallet_public_address,
-            api_key=config.hyperliquid_api_key,
-            api_secret=config.hyperliquid_api_secret
+            wallet_address=wallet_addr,
+            api_key=hl_key,
+            api_secret=hl_secret
         )
         
         # Get balance
@@ -126,40 +141,65 @@ with main_tabs[0]:
 with main_tabs[1]:
     st.subheader("⚙️ Configurações")
     
+    # Load current settings
+    current_settings = settings_manager.load_settings()
+    
     st.write("### Wallet Configuration")
     
     wallet_address = st.text_input(
         "Wallet Public Address",
-        value=config.wallet_public_address,
-        help="Your wallet address to monitor positions"
+        value=current_settings.get("wallet_public_address", config.wallet_public_address),
+        help="Your wallet address to monitor positions",
+        key="cfg_wallet_address"
     )
     
     st.write("### Hyperliquid Configuration")
     
     hl_api_key = st.text_input(
         "Hyperliquid API Key (optional)",
-        value=config.hyperliquid_api_key or "",
+        value=current_settings.get("hyperliquid_api_key", config.hyperliquid_api_key or ""),
         type="password",
-        help="Required for execution"
+        help="Required for execution",
+        key="cfg_hl_api_key"
     )
     
     hl_api_secret = st.text_input(
         "Hyperliquid API Secret (optional)",
-        value=config.hyperliquid_api_secret or "",
+        value=current_settings.get("hyperliquid_api_secret", config.hyperliquid_api_secret or ""),
         type="password",
-        help="Required for execution"
+        help="Required for execution",
+        key="cfg_hl_api_secret"
     )
     
     if st.button("💾 Save Configuration"):
-        st.success("Configuration saved! (Note: This is a demo - actual saving requires implementation)")
+        # Update settings
+        new_settings = current_settings.copy()
+        new_settings["wallet_public_address"] = wallet_address
+        new_settings["hyperliquid_api_key"] = hl_api_key
+        new_settings["hyperliquid_api_secret"] = hl_api_secret
+        
+        # Save to file
+        if settings_manager.save_settings(new_settings):
+            st.success("✅ Configuration saved successfully!")
+            st.info("🔄 Please refresh the page to apply changes.")
+        else:
+            st.error("❌ Failed to save configuration. Please try again.")
     
     st.markdown("---")
     
     st.write("### System Information")
+    
+    # Show current saved settings
+    display_settings = settings_manager.load_settings()
+    
     st.write(f"**Operation Mode:** {config.operation_mode}")
-    st.write(f"**Wallet Address:** {config.wallet_public_address or 'Not configured'}")
+    st.write(f"**Wallet Address:** {display_settings.get('wallet_public_address', 'Not configured')}")
     st.write(f"**Hyperliquid URL:** {config.hyperliquid_base_url}")
-    st.write(f"**Has API Keys:** {'Yes' if config.is_hyperliquid_enabled else 'No'}")
+    
+    has_api_keys = bool(display_settings.get('hyperliquid_api_key') and display_settings.get('hyperliquid_api_secret'))
+    st.write(f"**Has API Keys:** {'Yes' if has_api_keys else 'No'}")
+    
+    st.write(f"**Settings File:** data/user_settings.json")
 
 st.markdown("---")
 st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
