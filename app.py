@@ -1,0 +1,557 @@
+"""
+XCELFI LP Hedge - Main Streamlit Application
+Delta Neutral LP Hedge Strategy with Aerodrome + Hyperliquid
+"""
+import streamlit as st
+import plotly.graph_objects as go
+import plotly.express as px
+from datetime import datetime
+import pandas as pd
+
+# Import core modules
+from core.config import config
+from core.auth import AuthManager, render_login_page
+from core.nav import NAVCalculator
+from core.triggers import TriggerMonitor
+from core.safety import SafetyChecker
+from core.pnl import PnLTracker
+from core.executor import Executor
+
+# Import integrations
+from integrations.aerodrome import AerodromeClient
+from integrations.hyperliquid import HyperliquidClient
+
+# Import strategies
+from strategies.recenter import RecenterStrategy
+
+# Import utils
+from utils.logs import LogManager
+
+# Page configuration
+st.set_page_config(
+    page_title="XCELFI LP Hedge",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Initialize session state
+if 'initialized' not in st.session_state:
+    st.session_state.initialized = False
+    st.session_state.nav_calculator = NAVCalculator()
+    st.session_state.trigger_monitor = TriggerMonitor(
+        recenter_trigger=config.recenter_trigger,
+        hysteresis_reentry=config.hysteresis_reentry,
+        cooldown_hours=config.cooldown_hours
+    )
+    st.session_state.pnl_tracker = PnLTracker()
+    st.session_state.auto_mode_enabled = False
+
+# Initialize auth manager
+auth_manager = AuthManager(config.auth_users)
+
+# Check authentication
+if not auth_manager.is_authenticated():
+    render_login_page(auth_manager)
+    st.stop()
+
+# Initialize clients
+@st.cache_resource
+def init_clients():
+    """Initialize API clients."""
+    aerodrome = AerodromeClient(
+        rpc_url=config.base_rpc_url,
+        subgraph_url=config.aerodrome_subgraph_url,
+        router_address=config.aerodrome_router,
+        pool_address=config.aerodrome_pool_address,
+        wallet_address=config.wallet_public_address,
+        private_key=config.wallet_private_key
+    )
+    
+    hyperliquid = HyperliquidClient(
+        base_url=config.hyperliquid_base_url,
+        wallet_address=config.wallet_public_address,
+        api_key=config.hyperliquid_api_key,
+        api_secret=config.hyperliquid_api_secret
+    )
+    
+    return aerodrome, hyperliquid
+
+aerodrome_client, hyperliquid_client = init_clients()
+
+# Initialize strategy components
+safety_checker = SafetyChecker(config)
+log_manager = LogManager()
+recenter_strategy = RecenterStrategy(aerodrome_client, hyperliquid_client, config)
+executor = Executor(recenter_strategy, safety_checker, log_manager, config)
+
+# Sidebar
+with st.sidebar:
+    st.title("🎯 XCELFI LP Hedge")
+    st.markdown("---")
+    
+    # Operation mode indicator
+    mode = config.operation_mode
+    if mode == "ANALYSIS_READONLY":
+        st.info("📖 **Mode:** Analysis (Read-Only)")
+        st.caption("Viewing positions and suggestions only. No execution possible.")
+    elif mode == "EXECUTION_AERODROME_ONLY":
+        st.warning("⚠️ **Mode:** Execution (Aerodrome Only)")
+        st.caption("Can execute LP operations. Hyperliquid not configured.")
+    else:
+        st.success("✅ **Mode:** Full Execution")
+        st.caption("Can execute all operations.")
+    
+    st.markdown("---")
+    
+    # User info
+    current_user = auth_manager.get_current_user()
+    st.write(f"👤 **User:** {current_user}")
+    
+    if st.button("🚪 Logout"):
+        auth_manager.logout()
+        st.rerun()
+    
+    st.markdown("---")
+    
+    # Settings
+    st.subheader("⚙️ Settings")
+    
+    watch_interval = st.number_input(
+        "Watch Interval (min)",
+        min_value=1,
+        max_value=60,
+        value=config.watch_interval_min
+    )
+    
+    if config.is_execution_mode:
+        auto_mode = st.checkbox(
+            "Enable AUTO Mode",
+            value=st.session_state.auto_mode_enabled,
+            help="Automatically execute rebalancing when triggers fire and safety checks pass"
+        )
+        st.session_state.auto_mode_enabled = auto_mode
+    
+    st.markdown("---")
+    
+    # Refresh button
+    if st.button("🔄 Refresh Data"):
+        st.rerun()
+
+# Main content
+st.title("📊 Delta Neutral LP Hedge Dashboard")
+
+# Get current data
+try:
+    # Get LP position
+    lp_position = aerodrome_client.get_lp_position()
+    
+    # Get balances
+    balances = aerodrome_client.get_balances()
+    
+    # Get Hyperliquid positions
+    hl_positions = hyperliquid_client.get_positions()
+    hl_balance = hyperliquid_client.get_balance()
+    
+    # Get funding info
+    btc_funding = hyperliquid_client.get_funding_info("BTC/USDC")
+    eth_funding = hyperliquid_client.get_funding_info("ETH/USDC")
+    
+    # Mock prices
+    eth_price = 2500.0
+    btc_price = 45000.0
+    
+    # Calculate NAV
+    lp_value = 0.0
+    if lp_position:
+        lp_value = (lp_position.token0_amount * eth_price + 
+                   lp_position.token1_amount * btc_price)
+    
+    short_value = sum(pos.size * pos.mark_price for pos in hl_positions)
+    usdc_balance = balances.get("USDC", 0.0)
+    eth_balance = balances.get("ETH", 0.0)
+    
+    funding_24h = 0.0
+    if btc_funding and eth_funding:
+        funding_24h = (btc_funding.funding_rate_24h * abs(short_value) / 2 +
+                      eth_funding.funding_rate_24h * abs(short_value) / 2)
+    
+    lp_fees_24h = 0.0
+    if lp_position:
+        lp_fees_24h = (lp_position.unclaimed_fees0 * eth_price +
+                      lp_position.unclaimed_fees1 * btc_price)
+    
+    nav_snapshot = st.session_state.nav_calculator.calculate_nav(
+        lp_value=lp_value,
+        short_value=short_value,
+        usdc_balance=usdc_balance,
+        eth_balance=eth_balance,
+        eth_price_usd=eth_price,
+        funding_24h=funding_24h,
+        lp_fees_24h=lp_fees_24h
+    )
+    
+    # Get performance metrics
+    perf_metrics = st.session_state.nav_calculator.get_performance_metrics()
+    
+    # Check trigger
+    if lp_position:
+        current_price = eth_price / btc_price  # ETH/BTC price
+        range_lower = 0.05  # Mock
+        range_upper = 0.07  # Mock
+        
+        trigger_state = st.session_state.trigger_monitor.check_trigger(
+            current_price=current_price,
+            range_lower=range_lower,
+            range_upper=range_upper
+        )
+    else:
+        trigger_state = None
+    
+except Exception as e:
+    st.error(f"Error loading data: {e}")
+    st.stop()
+
+# Top metrics row
+col1, col2, col3, col4, col5 = st.columns(5)
+
+with col1:
+    st.metric(
+        "Total NAV",
+        f"${nav_snapshot.nav_total:,.2f}",
+        delta=f"{perf_metrics['inception']:.2f}%" if perf_metrics['inception'] != 0 else None
+    )
+
+with col2:
+    st.metric(
+        "Cota (Unit Price)",
+        f"{nav_snapshot.price_per_unit:.4f}",
+        delta=f"MTD: {perf_metrics['mtd']:.2f}%" if perf_metrics['mtd'] != 0 else None
+    )
+
+with col3:
+    st.metric(
+        "Units Outstanding",
+        f"{nav_snapshot.units:,.2f}"
+    )
+
+with col4:
+    st.metric(
+        "Funding 24h",
+        f"${nav_snapshot.funding_24h:.2f}"
+    )
+
+with col5:
+    st.metric(
+        "LP Fees 24h",
+        f"${nav_snapshot.lp_fees_24h:.2f}"
+    )
+
+st.markdown("---")
+
+# Status row
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("🎯 Position Status")
+    
+    if trigger_state:
+        if trigger_state.needs_recenter:
+            st.error(f"⚠️ **Recenter Needed:** {trigger_state.reason}")
+        else:
+            st.success(f"✅ **Status:** {trigger_state.reason}")
+        
+        st.write(f"**Current Price:** {trigger_state.current_price:.6f}")
+        st.write(f"**Deviation:** {trigger_state.deviation_pct:.2f}%")
+        st.write(f"**Range:** [{trigger_state.range_lower:.6f}, {trigger_state.range_upper:.6f}]")
+    else:
+        st.info("No LP position found")
+
+with col2:
+    st.subheader("💰 Reserves")
+    
+    eth_reserve = balances.get("ETH", 0.0)
+    usdc_reserve = hl_balance.get("available_balance", 0.0)
+    
+    # Check reserve status
+    eth_min = config.eth_gas_min
+    eth_target = config.eth_gas_target
+    usdc_min = nav_snapshot.nav_total * config.usdc_cex_min_pct
+    usdc_target = nav_snapshot.nav_total * config.usdc_cex_target_pct
+    
+    if eth_reserve < eth_min:
+        st.error(f"⚠️ ETH Gas: {eth_reserve:.4f} ETH (below min {eth_min:.4f})")
+    elif eth_reserve < eth_target:
+        st.warning(f"⚡ ETH Gas: {eth_reserve:.4f} ETH (below target {eth_target:.4f})")
+    else:
+        st.success(f"✅ ETH Gas: {eth_reserve:.4f} ETH")
+    
+    if usdc_reserve < usdc_min:
+        st.error(f"⚠️ USDC CEX: ${usdc_reserve:.2f} (below min ${usdc_min:.2f})")
+    elif usdc_reserve < usdc_target:
+        st.warning(f"⚡ USDC CEX: ${usdc_reserve:.2f} (below target ${usdc_target:.2f})")
+    else:
+        st.success(f"✅ USDC CEX: ${usdc_reserve:.2f}")
+
+st.markdown("---")
+
+# Continue in part 2...
+
+# Allocation breakdown
+st.subheader("📈 Allocation Breakdown")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    # Pie chart of allocation
+    allocation_data = pd.DataFrame({
+        'Component': ['LP Position', 'Short Positions', 'USDC Buffer', 'ETH Buffer'],
+        'Value': [
+            nav_snapshot.lp_value,
+            abs(nav_snapshot.short_value),
+            nav_snapshot.usdc_balance,
+            nav_snapshot.eth_balance
+        ]
+    })
+    
+    fig = px.pie(
+        allocation_data,
+        values='Value',
+        names='Component',
+        title='Current Allocation'
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+with col2:
+    # Target vs Actual
+    target_lp = nav_snapshot.nav_total * config.target_lp_pct
+    target_short = nav_snapshot.nav_total * config.target_short_pct
+    target_usdc = nav_snapshot.nav_total * config.reserve_usdc_pct
+    target_eth = nav_snapshot.nav_total * config.reserve_eth_gas_pct
+    
+    comparison_data = pd.DataFrame({
+        'Component': ['LP', 'Shorts', 'USDC', 'ETH'],
+        'Target': [target_lp, target_short, target_usdc, target_eth],
+        'Actual': [
+            nav_snapshot.lp_value,
+            abs(nav_snapshot.short_value),
+            nav_snapshot.usdc_balance,
+            nav_snapshot.eth_balance
+        ]
+    })
+    
+    fig = go.Figure(data=[
+        go.Bar(name='Target', x=comparison_data['Component'], y=comparison_data['Target']),
+        go.Bar(name='Actual', x=comparison_data['Component'], y=comparison_data['Actual'])
+    ])
+    fig.update_layout(title='Target vs Actual Allocation', barmode='group')
+    st.plotly_chart(fig, use_container_width=True)
+
+with col3:
+    # Protocol PnL
+    pnl_summary = st.session_state.pnl_tracker.get_summary()
+    
+    if pnl_summary['by_protocol']:
+        pnl_data = pd.DataFrame({
+            'Protocol': list(pnl_summary['by_protocol'].keys()),
+            'PnL': list(pnl_summary['by_protocol'].values())
+        })
+        
+        fig = px.bar(
+            pnl_data,
+            x='Protocol',
+            y='PnL',
+            title='PnL by Protocol',
+            color='PnL',
+            color_continuous_scale=['red', 'yellow', 'green']
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No PnL data yet")
+
+st.markdown("---")
+
+# NAV History Chart
+st.subheader("📊 NAV & Cota History")
+
+nav_history = st.session_state.nav_calculator.get_history_df()
+
+if not nav_history.empty:
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatter(
+        x=nav_history['timestamp'],
+        y=nav_history['price_per_unit'],
+        mode='lines+markers',
+        name='Cota (Unit Price)',
+        yaxis='y1'
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=nav_history['timestamp'],
+        y=nav_history['nav_total'],
+        mode='lines+markers',
+        name='Total NAV',
+        yaxis='y2'
+    ))
+    
+    fig.update_layout(
+        title='NAV & Cota Evolution',
+        xaxis=dict(title='Date'),
+        yaxis=dict(title='Cota', side='left'),
+        yaxis2=dict(title='NAV (USD)', side='right', overlaying='y'),
+        hovermode='x unified'
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("No historical data yet. NAV will be tracked over time.")
+
+st.markdown("---")
+
+# Execution section
+if trigger_state and trigger_state.needs_recenter:
+    st.subheader("🎯 Rebalancing Required")
+    
+    # Calculate recenter plan
+    try:
+        recenter_plan = recenter_strategy.calculate_recenter_plan(
+            current_price=trigger_state.current_price,
+            lp_position=lp_position,
+            aum=nav_snapshot.nav_total
+        )
+        
+        # Display plan
+        st.write("### Recenter Plan")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**Current State:**")
+            st.write(f"- LP Value: ${recenter_plan.current_lp_value:,.2f}")
+            st.write(f"- BTC Short: ${recenter_plan.current_short_btc:,.2f}")
+            st.write(f"- ETH Short: ${recenter_plan.current_short_eth:,.2f}")
+            st.write(f"- Current Price: {recenter_plan.current_price:.6f}")
+        
+        with col2:
+            st.write("**New State:**")
+            st.write(f"- New LP Value: ${recenter_plan.new_lp_value:,.2f}")
+            st.write(f"- Target BTC Short: ${recenter_plan.target_short_btc:,.2f}")
+            st.write(f"- Target ETH Short: ${recenter_plan.target_short_eth:,.2f}")
+            st.write(f"- New Range: [{recenter_plan.new_range_lower_price:.6f}, {recenter_plan.new_range_upper_price:.6f}]")
+        
+        st.write("**Actions Required:**")
+        st.write(f"1. Remove {recenter_plan.liquidity_to_remove:,.2f} liquidity")
+        
+        if recenter_plan.swap_needed:
+            st.write(f"2. Swap {recenter_plan.swap_amount_in:.4f} {recenter_plan.swap_token_in} → {recenter_plan.swap_amount_out:.4f} {recenter_plan.swap_token_out}")
+        else:
+            st.write("2. No swap needed")
+        
+        st.write(f"3. Add liquidity: {recenter_plan.new_eth_amount:.4f} ETH + {recenter_plan.new_btc_amount:.6f} BTC")
+        st.write(f"4. Adjust BTC short by ${recenter_plan.short_btc_adjustment:,.2f}")
+        st.write(f"5. Adjust ETH short by ${recenter_plan.short_eth_adjustment:,.2f}")
+        
+        st.write(f"**Estimated Costs:** ${recenter_plan.total_cost_usd:.2f} (Gas: {recenter_plan.estimated_gas_eth:.4f} ETH, Slippage: ${recenter_plan.estimated_slippage_usd:.2f})")
+        
+        # Safety checks
+        if config.is_execution_mode:
+            st.write("### Safety Checks")
+            
+            safety_results = executor.can_execute_auto(
+                eth_balance=eth_reserve,
+                usdc_cex_balance=usdc_reserve,
+                aum=nav_snapshot.nav_total,
+                plan=recenter_plan,
+                aerodrome_healthy=aerodrome_client.is_healthy(),
+                hyperliquid_healthy=hyperliquid_client.is_healthy(),
+                pool_liquidity_usd=1000000.0  # Mock
+            )
+            
+            for result in safety_results['results']:
+                if result.severity == "error":
+                    st.error(f"❌ {result.check_name}: {result.message}")
+                elif result.severity == "warning":
+                    st.warning(f"⚠️ {result.check_name}: {result.message}")
+                else:
+                    st.success(f"✅ {result.check_name}: {result.message}")
+            
+            # Execution buttons
+            st.write("### Execute")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("🚀 Full Rebalance", type="primary", disabled=not safety_results['auto_mode_allowed']):
+                    with st.spinner("Executing full rebalance..."):
+                        result = executor.execute_manual(recenter_plan, lp_position, "full_recenter")
+                        if result['success']:
+                            st.success("✅ Rebalance executed successfully!")
+                            st.session_state.trigger_monitor.mark_recentered()
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error: {result['error']}")
+            
+            with col2:
+                if st.button("📊 LP Only"):
+                    with st.spinner("Executing LP recenter..."):
+                        result = executor.execute_manual(recenter_plan, lp_position, "lp_only")
+                        if result['success']:
+                            st.success("✅ LP recenter executed successfully!")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error: {result['error']}")
+            
+            with col3:
+                if st.button("⚡ Shorts Only"):
+                    with st.spinner("Adjusting shorts..."):
+                        result = executor.execute_manual(recenter_plan, lp_position, "shorts_only")
+                        if result['success']:
+                            st.success("✅ Shorts adjusted successfully!")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error: {result['error']}")
+            
+            # AUTO mode status
+            if st.session_state.auto_mode_enabled:
+                if safety_results['auto_mode_allowed']:
+                    st.info("🤖 AUTO mode is ENABLED and ready to execute")
+                else:
+                    st.warning("🤖 AUTO mode is ENABLED but BLOCKED by safety checks")
+        else:
+            st.info("📖 Analysis mode: Execution not available. Configure private key and API keys to enable execution.")
+    
+    except Exception as e:
+        st.error(f"Error calculating recenter plan: {e}")
+
+# Logs section
+with st.expander("📝 Recent Execution Logs"):
+    recent_executions = log_manager.get_recent_executions(limit=10)
+    
+    if recent_executions:
+        for log in reversed(recent_executions):
+            timestamp = log.get('timestamp', 'N/A')
+            event = log.get('event', 'N/A')
+            operation = log.get('operation_type', 'N/A')
+            mode = log.get('mode', 'N/A')
+            
+            st.write(f"**{timestamp}** - {event} - {operation} ({mode})")
+    else:
+        st.info("No execution logs yet")
+
+with st.expander("⚠️ Recent Errors"):
+    recent_errors = log_manager.get_recent_errors(limit=10)
+    
+    if recent_errors:
+        for log in reversed(recent_errors):
+            timestamp = log.get('timestamp', 'N/A')
+            error = log.get('error', 'N/A')
+            operation = log.get('operation_type', 'N/A')
+            
+            st.error(f"**{timestamp}** - {operation}: {error}")
+    else:
+        st.success("No errors logged")
+
+# Footer
+st.markdown("---")
+st.caption(f"XCELFI LP Hedge v2.0 | Mode: {config.operation_mode} | Last refresh: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
