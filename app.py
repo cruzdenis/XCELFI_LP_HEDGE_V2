@@ -128,6 +128,7 @@ with main_tabs[0]:
         octav_api_key = saved_settings.get("octav_api_key", "")
         
         uni_positions = []
+        configured_networks = saved_settings.get("uniswap_networks", ["base", "arbitrum", "ethereum", "optimism", "polygon"])
         
         if use_octav and octav_api_key:
             # Use Octav.fi API
@@ -140,7 +141,6 @@ with main_tabs[0]:
             uni_positions = octav_positions
         else:
             # Use direct Subgraph queries
-            configured_networks = saved_settings.get("uniswap_networks", ["base", "arbitrum", "ethereum", "optimism", "polygon"])
             graph_api_key = saved_settings.get("graph_api_key", "")
             
             uniswap_client = UniswapClient(
