@@ -121,6 +121,8 @@ class SettingsManager:
             # Uniswap V3 Networks
             "uniswap_networks": ["base", "arbitrum", "ethereum", "optimism", "polygon"],  # Redes para buscar posições LP
             "graph_api_key": "",  # The Graph API key para acessar redes que requerem Gateway
+            "octav_api_key": "",  # Octav.fi API key para buscar posições LP de múltiplas redes
+            "use_octav": True,  # Usar Octav.fi ao invés de Subgraphs diretos
             
             # Strategy Parameters
             "recenter_trigger_pct": 1.0,

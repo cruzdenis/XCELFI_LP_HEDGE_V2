@@ -10,6 +10,7 @@ from core.config import config
 from core.settings_manager import SettingsManager
 from integrations.hyperliquid import HyperliquidClient
 from integrations.uniswap import UniswapClient
+from integrations.octav import OctavClient
 from core.delta_neutral import DeltaNeutralAnalyzer
 
 # Page configuration
@@ -122,40 +123,90 @@ with main_tabs[0]:
     st.subheader("Uniswap V3 LP Positions (Multi-Network)")
     
     try:
-        # Get configured networks from settings
-        configured_networks = saved_settings.get("uniswap_networks", ["base", "arbitrum", "ethereum", "optimism", "polygon"])
+        # Check if Octav.fi should be used
+        use_octav = saved_settings.get("use_octav", True)
+        octav_api_key = saved_settings.get("octav_api_key", "")
         
-        # Get The Graph API key from settings
-        graph_api_key = saved_settings.get("graph_api_key", "")
+        uni_positions = []
         
-        uniswap_client = UniswapClient(
-            wallet_address=wallet_addr,
-            networks=configured_networks,
-            graph_api_key=graph_api_key if graph_api_key else None
-        )
-        
-        # Get positions
-        uni_positions = uniswap_client.get_positions()
+        if use_octav and octav_api_key:
+            # Use Octav.fi API
+            st.info("📡 Fetching positions via Octav.fi API...")
+            octav_client = OctavClient(api_key=octav_api_key)
+            octav_positions = octav_client.get_positions(wallet_addr)
+            
+            # Convert Octav positions to our format
+            # (Octav returns dict, we need to convert to Position objects or use dict directly)
+            uni_positions = octav_positions
+        else:
+            # Use direct Subgraph queries
+            configured_networks = saved_settings.get("uniswap_networks", ["base", "arbitrum", "ethereum", "optimism", "polygon"])
+            graph_api_key = saved_settings.get("graph_api_key", "")
+            
+            uniswap_client = UniswapClient(
+                wallet_address=wallet_addr,
+                networks=configured_networks,
+                graph_api_key=graph_api_key if graph_api_key else None
+            )
+            
+            # Get positions
+            uni_positions = uniswap_client.get_positions()
         
         if uni_positions:
-            st.write(f"**Active LP Positions:** {len(uni_positions)} across {len(set(p.network for p in uni_positions))} network(s)")
+            # Handle both dict and object formats
+            networks = set()
+            for p in uni_positions:
+                if isinstance(p, dict):
+                    networks.add(p.get('network', 'Unknown'))
+                else:
+                    networks.add(p.network)
+            
+            st.write(f"**Active LP Positions:** {len(uni_positions)} across {len(networks)} network(s)")
             
             for pos in uni_positions:
-                status_emoji = "✅" if pos.in_range else "⚠️"
-                with st.expander(f"{status_emoji} [{pos.network}] {pos.token0_symbol}/{pos.token1_symbol} - Fee: {pos.fee_tier}%"):
+                # Support both dict and object
+                if isinstance(pos, dict):
+                    in_range = pos.get('in_range', True)
+                    network = pos.get('network', 'Unknown')
+                    token0 = pos.get('token0_symbol', '')
+                    token1 = pos.get('token1_symbol', '')
+                    fee_tier = pos.get('fee_tier', '')
+                    token0_amt = pos.get('token0_amount', 0)
+                    token1_amt = pos.get('token1_amount', 0)
+                    liquidity = pos.get('liquidity', 0)
+                    value_usd = pos.get('value_usd', 0)
+                    uncollected_fees = pos.get('uncollected_fees_usd', 0)
+                    pos_id = pos.get('id', '')
+                else:
+                    in_range = pos.in_range
+                    network = pos.network
+                    token0 = pos.token0_symbol
+                    token1 = pos.token1_symbol
+                    fee_tier = pos.fee_tier
+                    token0_amt = pos.token0_amount
+                    token1_amt = pos.token1_amount
+                    liquidity = pos.liquidity
+                    value_usd = getattr(pos, 'value_usd', 0)
+                    uncollected_fees = getattr(pos, 'uncollected_fees_usd', 0)
+                    pos_id = pos.id
+                
+                status_emoji = "✅" if in_range else "⚠️"
+                with st.expander(f"{status_emoji} [{network}] {token0}/{token1} - Fee: {fee_tier}%"):
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                        st.write(f"**{pos.token0_symbol} Amount:** {pos.token0_amount:.6f}")
-                        st.write(f"**{pos.token1_symbol} Amount:** {pos.token1_amount:.6f}")
-                        st.write(f"**Liquidity:** {pos.liquidity:,.0f}")
+                        st.write(f"**{token0} Amount:** {token0_amt:.6f}")
+                        st.write(f"**{token1} Amount:** {token1_amt:.6f}")
+                        st.write(f"**Liquidity:** {liquidity:,.0f}")
+                        if value_usd > 0:
+                            st.write(f"**Value USD:** ${value_usd:,.2f}")
                     
                     with col2:
-                        st.write(f"**Fees {pos.token0_symbol}:** {pos.fees_token0:.6f}")
-                        st.write(f"**Fees {pos.token1_symbol}:** {pos.fees_token1:.6f}")
-                        st.write(f"**Status:** {'In Range' if pos.in_range else 'Out of Range'}")
+                        if uncollected_fees > 0:
+                            st.write(f"**Uncollected Fees:** ${uncollected_fees:.2f}")
+                        st.write(f"**Status:** {'In Range' if in_range else 'Out of Range'}")
                     
-                    st.caption(f"Position ID: {pos.id}")
+                    st.caption(f"Position ID: {pos_id}")
         else:
             st.info(f"No Uniswap V3 positions found on configured networks: {', '.join(configured_networks)}")
             st.caption("Tip: You can configure which networks to monitor in the Settings tab")
@@ -302,6 +353,32 @@ with main_tabs[1]:
     
     st.markdown("---")
     
+    st.write("### Octav.fi API (Recommended)")
+    
+    use_octav = st.checkbox(
+        "Use Octav.fi API",
+        value=current_settings.get("use_octav", True),
+        help="Octav.fi provides a reliable API to fetch LP positions from all networks. Recommended over direct Subgraph queries.",
+        key="cfg_use_octav"
+    )
+    
+    octav_api_key = st.text_input(
+        "Octav.fi API Key",
+        value=current_settings.get("octav_api_key", ""),
+        type="password",
+        help="Get your API key at https://data.octav.fi/",
+        key="cfg_octav_api_key"
+    )
+    
+    if use_octav and octav_api_key:
+        st.success("✅ Octav.fi API configured! Positions from all networks will be fetched reliably.")
+    elif use_octav and not octav_api_key:
+        st.warning("⚠️ Octav.fi is enabled but API key is missing. Please add your API key.")
+    
+    st.caption("🔗 [Get your free API key at Octav.fi](https://data.octav.fi/)")
+    
+    st.markdown("---")
+    
     st.write("### Hyperliquid Configuration")
     
     hl_api_key = st.text_input(
@@ -326,6 +403,8 @@ with main_tabs[1]:
         new_settings["wallet_public_address"] = wallet_address
         new_settings["uniswap_networks"] = selected_networks
         new_settings["graph_api_key"] = graph_api_key
+        new_settings["use_octav"] = use_octav
+        new_settings["octav_api_key"] = octav_api_key
         new_settings["hyperliquid_api_key"] = hl_api_key
         new_settings["hyperliquid_api_secret"] = hl_api_secret
         
