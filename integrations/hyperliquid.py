@@ -117,10 +117,59 @@ class HyperliquidClient:
             List of Position objects
         """
         try:
-            # TODO: Implement real Hyperliquid API query
-            # For now, return empty list to indicate no real data available
-            print(f"[INFO] Position query not implemented for wallet {self.wallet_address} - returning empty list")
-            return []
+            # Query Hyperliquid clearinghouse state
+            response = requests.post(
+                f"{self.base_url}/info",
+                json={
+                    "type": "clearinghouseState",
+                    "user": self.wallet_address
+                },
+                timeout=10
+            )
+            
+            if response.status_code != 200:
+                print(f"[ERROR] Hyperliquid API returned status {response.status_code}")
+                return []
+            
+            data = response.json()
+            positions = []
+            
+            # Parse asset positions
+            for asset_pos in data.get("assetPositions", []):
+                pos_data = asset_pos.get("position", {})
+                
+                # Extract position data
+                coin = pos_data.get("coin", "")
+                szi = float(pos_data.get("szi", 0))
+                
+                # Skip if no position
+                if abs(szi) < 0.0001:
+                    continue
+                
+                entry_px = float(pos_data.get("entryPx", 0))
+                position_value = float(pos_data.get("positionValue", 0))
+                unrealized_pnl = float(pos_data.get("unrealizedPnl", 0))
+                margin_used = float(pos_data.get("marginUsed", 0))
+                
+                # Calculate mark price from position value and size
+                mark_price = abs(position_value / szi) if szi != 0 else entry_px
+                
+                # Get leverage
+                leverage_info = pos_data.get("leverage", {})
+                leverage = float(leverage_info.get("value", 1))
+                
+                positions.append(Position(
+                    symbol=coin,
+                    size=szi,
+                    entry_price=entry_px,
+                    mark_price=mark_price,
+                    unrealized_pnl=unrealized_pnl,
+                    margin=margin_used,
+                    leverage=leverage
+                ))
+            
+            return positions
+            
         except Exception as e:
             print(f"Error getting positions: {e}")
             return []
@@ -149,16 +198,33 @@ class HyperliquidClient:
         Get current mark price (read-only).
         
         Args:
-            symbol: Trading pair symbol
+            symbol: Trading pair symbol (e.g., "BTC", "ETH")
             
         Returns:
             Mark price or None if error
         """
         try:
-            # TODO: Implement real Hyperliquid API query
-            # For now, return None to indicate no real data available
-            print(f"[INFO] Mark price query not implemented for {symbol} - returning None")
-            return None
+            # Query all mids from Hyperliquid
+            response = requests.post(
+                f"{self.base_url}/info",
+                json={"type": "allMids"},
+                timeout=10
+            )
+            
+            if response.status_code != 200:
+                print(f"[ERROR] Hyperliquid API returned status {response.status_code}")
+                return None
+            
+            mids = response.json()
+            
+            # Get price for symbol
+            price_str = mids.get(symbol)
+            if price_str:
+                return float(price_str)
+            else:
+                print(f"[WARNING] Symbol {symbol} not found in mids")
+                return None
+                
         except Exception as e:
             print(f"Error getting mark price: {e}")
             return None
@@ -171,14 +237,42 @@ class HyperliquidClient:
             Dictionary with balance info
         """
         try:
-            # In a real implementation, this would query Hyperliquid API
-            # For now, return mock data
+            # Query Hyperliquid clearinghouse state
+            response = requests.post(
+                f"{self.base_url}/info",
+                json={
+                    "type": "clearinghouseState",
+                    "user": self.wallet_address
+                },
+                timeout=10
+            )
+            
+            if response.status_code != 200:
+                print(f"[ERROR] Hyperliquid API returned status {response.status_code}")
+                return {}
+            
+            data = response.json()
+            
+            # Extract margin summary
+            margin_summary = data.get("marginSummary", {})
+            
+            account_value = float(margin_summary.get("accountValue", 0))
+            total_margin_used = float(margin_summary.get("totalMarginUsed", 0))
+            total_raw_usd = float(margin_summary.get("totalRawUsd", 0))
+            withdrawable = float(data.get("withdrawable", 0))
+            
+            # Calculate unrealized PnL from positions
+            unrealized_pnl = 0.0
+            for asset_pos in data.get("assetPositions", []):
+                pos_data = asset_pos.get("position", {})
+                unrealized_pnl += float(pos_data.get("unrealizedPnl", 0))
             
             return {
-                "total_equity": 15000.0,
-                "available_balance": 7500.0,
-                "margin_used": 7500.0,
-                "unrealized_pnl": 350.0
+                "total_equity": account_value,
+                "available_balance": withdrawable,
+                "margin_used": total_margin_used,
+                "unrealized_pnl": unrealized_pnl,
+                "total_raw_usd": total_raw_usd
             }
         except Exception as e:
             print(f"Error getting balance: {e}")
