@@ -48,6 +48,16 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Initialize session state for saved configuration
+if 'config_saved' not in st.session_state:
+    st.session_state.config_saved = False
+if 'saved_api_key' not in st.session_state:
+    st.session_state.saved_api_key = os.getenv("OCTAV_API_KEY", "")
+if 'saved_wallet' not in st.session_state:
+    st.session_state.saved_wallet = os.getenv("WALLET_ADDRESS", "0xc1E18438Fed146D814418364134fE28cC8622B5C")
+if 'saved_tolerance' not in st.session_state:
+    st.session_state.saved_tolerance = float(os.getenv("TOLERANCE_PCT", "5.0"))
+
 # Sidebar
 with st.sidebar:
     st.title("🎯 XCELFI LP Hedge V3")
@@ -57,34 +67,78 @@ with st.sidebar:
     st.subheader("⚙️ Configuração")
     
     # Get API key from environment or user input
-    octav_api_key = os.getenv("OCTAV_API_KEY", "")
-    if not octav_api_key:
-        octav_api_key = st.text_input(
-            "Octav.fi API Key",
-            type="password",
-            help="Obtenha em https://data.octav.fi"
-        )
+    default_api_key = os.getenv("OCTAV_API_KEY", "")
+    if default_api_key:
+        st.success("✅ API Key (ambiente)")
+        api_key_input = default_api_key
+        wallet_input = os.getenv("WALLET_ADDRESS", "0xc1E18438Fed146D814418364134fE28cC8622B5C")
+        tolerance_input = float(os.getenv("TOLERANCE_PCT", "5.0"))
+        
+        # Auto-save environment config
+        if not st.session_state.config_saved:
+            st.session_state.saved_api_key = api_key_input
+            st.session_state.saved_wallet = wallet_input
+            st.session_state.saved_tolerance = tolerance_input
+            st.session_state.config_saved = True
     else:
-        st.success("✅ API Key configurada")
+        # Manual input
+        api_key_input = st.text_input(
+            "Octav.fi API Key",
+            value=st.session_state.saved_api_key if st.session_state.config_saved else "",
+            type="password",
+            help="Obtenha em https://data.octav.fi",
+            key="api_key_input"
+        )
+        
+        wallet_input = st.text_input(
+            "Wallet Address",
+            value=st.session_state.saved_wallet if st.session_state.config_saved else "0xc1E18438Fed146D814418364134fE28cC8622B5C",
+            help="Endereço da wallet para monitorar",
+            key="wallet_input"
+        )
+        
+        tolerance_input = st.slider(
+            "Tolerância (%)",
+            min_value=1.0,
+            max_value=20.0,
+            value=st.session_state.saved_tolerance if st.session_state.config_saved else 5.0,
+            step=0.5,
+            help="Diferença percentual aceitável para considerar balanceado",
+            key="tolerance_input"
+        )
+        
+        # Save button
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💾 Salvar", use_container_width=True, type="primary"):
+                if api_key_input and wallet_input:
+                    st.session_state.saved_api_key = api_key_input
+                    st.session_state.saved_wallet = wallet_input
+                    st.session_state.saved_tolerance = tolerance_input
+                    st.session_state.config_saved = True
+                    st.success("✅ Configuração salva!")
+                    st.rerun()
+                else:
+                    st.error("❌ Preencha API Key e Wallet")
+        
+        with col2:
+            if st.button("🔄 Refresh", use_container_width=True):
+                if st.session_state.config_saved:
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Salve a configuração primeiro")
     
-    # Wallet address
-    default_wallet = os.getenv("WALLET_ADDRESS", "0xc1E18438Fed146D814418364134fE28cC8622B5C")
-    wallet_address = st.text_input(
-        "Wallet Address",
-        value=default_wallet,
-        help="Endereço da wallet para monitorar"
-    )
+    st.markdown("---")
     
-    # Tolerance
-    default_tolerance = float(os.getenv("TOLERANCE_PCT", "5.0"))
-    tolerance_pct = st.slider(
-        "Tolerância (%)",
-        min_value=1.0,
-        max_value=20.0,
-        value=default_tolerance,
-        step=0.5,
-        help="Diferença percentual aceitável para considerar balanceado"
-    )
+    # Show saved configuration status
+    if st.session_state.config_saved:
+        st.success("✅ Configuração ativa")
+        with st.expander("📋 Ver configuração"):
+            st.text(f"Wallet: {st.session_state.saved_wallet[:10]}...")
+            st.text(f"Tolerância: {st.session_state.saved_tolerance}%")
+    else:
+        st.info("ℹ️ Configure e salve para começar")
     
     st.markdown("---")
     
@@ -94,20 +148,13 @@ with st.sidebar:
         st.info("📖 **Modo:** Análise (Read-Only)")
     else:
         st.warning("⚠️ **Modo:** Execução Ativa")
-    
-    st.markdown("---")
-    
-    # Refresh button
-    if st.button("🔄 Atualizar Dados", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
 
 # Main content
 st.markdown('<div class="main-header">📊 Delta Neutral LP Hedge Dashboard</div>', unsafe_allow_html=True)
 
-# Check if API key is provided
-if not octav_api_key:
-    st.warning("⚠️ Por favor, configure a API Key do Octav.fi na barra lateral.")
+# Check if configuration is saved
+if not st.session_state.config_saved:
+    st.warning("⚠️ Por favor, configure a API Key e Wallet na barra lateral e clique em **Salvar**.")
     st.info("""
     **Como obter a API Key:**
     1. Acesse https://data.octav.fi
@@ -115,8 +162,14 @@ if not octav_api_key:
     3. Vá para a seção API
     4. Gere uma nova API key
     5. Cole a chave na barra lateral
+    6. **Clique em Salvar** 💾
     """)
     st.stop()
+
+# Use saved configuration
+octav_api_key = st.session_state.saved_api_key
+wallet_address = st.session_state.saved_wallet
+tolerance_pct = st.session_state.saved_tolerance
 
 # Cache portfolio data to avoid multiple API calls
 @st.cache_data(ttl=60, show_spinner=False)
