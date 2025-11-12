@@ -116,14 +116,16 @@ with st.sidebar:
                     st.session_state.saved_wallet = wallet_input
                     st.session_state.saved_tolerance = tolerance_input
                     st.session_state.config_saved = True
-                    st.success("✅ Configuração salva!")
+                    st.toast("✅ Configuração salva! Carregando dados...", icon="✅")
+                    st.cache_data.clear()  # Clear cache to force fresh data
                     st.rerun()
                 else:
                     st.error("❌ Preencha API Key e Wallet")
         
         with col2:
-            if st.button("🔄 Refresh", use_container_width=True):
+            if st.button("🔄 Atualizar", use_container_width=True):
                 if st.session_state.config_saved:
+                    st.toast("🔄 Atualizando dados...", icon="🔄")
                     st.cache_data.clear()
                     st.rerun()
                 else:
@@ -217,12 +219,28 @@ def fetch_portfolio_data(api_key, wallet):
         return None
 
 # Fetch data with loading indicator
-with st.spinner("🔄 Carregando dados do Octav.fi..."):
-    data = fetch_portfolio_data(octav_api_key, wallet_address)
-
-if not data:
-    st.error("❌ Erro ao buscar dados do portfólio. Verifique a API key e o endereço da wallet.")
-    st.info("💡 **Dica:** Certifique-se de que a API key está correta e que a wallet tem posições ativas.")
+try:
+    with st.spinner("🔄 Carregando dados do Octav.fi..."):
+        data = fetch_portfolio_data(octav_api_key, wallet_address)
+    
+    if not data:
+        st.error("❌ Erro ao buscar dados do portfólio.")
+        st.info("""
+        **Possíveis causas:**
+        - API key inválida ou expirada
+        - Wallet address incorreto
+        - Wallet sem posições ativas
+        - Problema de conexão com Octav.fi
+        
+        **Solução:**
+        1. Verifique a API key em https://data.octav.fi
+        2. Confirme o endereço da wallet
+        3. Tente clicar em Atualizar
+        """)
+        st.stop()
+except Exception as e:
+    st.error(f"❌ Erro inesperado: {str(e)}")
+    st.info("💡 Tente clicar em **Atualizar** na barra lateral.")
     st.stop()
 
 # Display net worth
