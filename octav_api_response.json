@@ -1,0 +1,1625 @@
+[
+  {
+    "address": "0xc1e18438fed146d814418364134fe28cc8622b5c",
+    "conversionRates": {
+      "ETH": "3451.5741169718",
+      "SOL": "155.3591166533108",
+      "cbBTC": "103270.55714522525",
+      "EURC": "1.1576670685660302",
+      "BNB": "963.665974802645"
+    },
+    "cashBalance": "0",
+    "closedPnl": "N/A",
+    "dailyIncome": "0",
+    "dailyExpense": "0",
+    "fees": "0",
+    "feesFiat": "0",
+    "lastUpdated": "1762913586368",
+    "openPnl": "N/A",
+    "networth": "102.5966541238271322642",
+    "priceAdapters": [
+      "octav"
+    ],
+    "totalCostBasis": "N/A",
+    "assetByProtocols": {
+      "wallet": {
+        "name": "Wallet",
+        "key": "wallet",
+        "value": "0.78481977246358075749",
+        "totalCostBasis": "N/A",
+        "totalClosedPnl": "N/A",
+        "totalOpenPnl": "N/A",
+        "chains": {
+          "abstract": {
+            "name": "Abstract",
+            "key": "abstract",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "arbitrum": {
+            "name": "Arbitrum",
+            "key": "arbitrum",
+            "value": "0.78481977246358075749",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [
+                  {
+                    "balance": "0.000050675165612795",
+                    "chainContract": "arbitrum:0x0000000000000000000000000000000000000000",
+                    "chainKey": "arbitrum",
+                    "contract": "0x0000000000000000000000000000000000000000",
+                    "decimal": "18",
+                    "name": "ethereum",
+                    "openPnl": "N/A",
+                    "price": "3455.71",
+                    "priceSource": "debank",
+                    "symbol": "eth",
+                    "totalCostBasis": "N/A",
+                    "value": "0.17511867655979180945"
+                  },
+                  {
+                    "balance": "0.00000424",
+                    "chainContract": "arbitrum:0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                    "chainKey": "arbitrum",
+                    "contract": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                    "decimal": "8",
+                    "name": "wrapped bitcoin",
+                    "openPnl": "N/A",
+                    "price": "103371.22",
+                    "priceSource": "debank",
+                    "symbol": "wbtc",
+                    "totalCostBasis": "N/A",
+                    "value": "0.4382939728"
+                  },
+                  {
+                    "balance": "0.000049660768783909",
+                    "chainContract": "arbitrum:0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                    "chainKey": "arbitrum",
+                    "contract": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                    "decimal": "18",
+                    "name": "weth",
+                    "openPnl": "N/A",
+                    "price": "3451.56",
+                    "priceSource": "debank",
+                    "symbol": "weth",
+                    "totalCostBasis": "N/A",
+                    "value": "0.17140712310378894804"
+                  }
+                ],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0.78481977246358075749",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "arbitrum_nova": {
+            "name": "Arbitrum Nova",
+            "key": "arbitrum_nova",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "avalanche": {
+            "name": "Avalanche",
+            "key": "avalanche",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "b2": {
+            "name": "B2",
+            "key": "b2",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "base": {
+            "name": "Base",
+            "key": "base",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "berachain": {
+            "name": "Berachain",
+            "key": "berachain",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "binance": {
+            "name": "Binance",
+            "key": "binance",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "blast": {
+            "name": "Blast",
+            "key": "blast",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "bob": {
+            "name": "BOB",
+            "key": "bob",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "boba": {
+            "name": "Boba",
+            "key": "boba",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "bouncebit": {
+            "name": "BounceBit",
+            "key": "bouncebit",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "celo": {
+            "name": "Celo",
+            "key": "celo",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "core": {
+            "name": "Core",
+            "key": "core",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "corn": {
+            "name": "Corn",
+            "key": "corn",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "cronos": {
+            "name": "Cronos",
+            "key": "cronos",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "ethereum": {
+            "name": "Ethereum",
+            "key": "ethereum",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "ethlink": {
+            "name": "Etherlink",
+            "key": "ethlink",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "everclear": {
+            "name": "Everclear",
+            "key": "everclear",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "fantom": {
+            "name": "Fantom",
+            "key": "fantom",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "flare": {
+            "name": "Flare",
+            "key": "flare",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "fraxtal": {
+            "name": "Fraxtal",
+            "key": "fraxtal",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "fuse": {
+            "name": "Fuse",
+            "key": "fuse",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "gnosis": {
+            "name": "Gnosis",
+            "key": "gnosis",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "hsk": {
+            "name": "HashKey",
+            "key": "hsk",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "hemi": {
+            "name": "Hemi",
+            "key": "hemi",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "hyperevm": {
+            "name": "HyperEVM",
+            "key": "hyperevm",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "hyperliquid": {
+            "name": "Hyperliquid",
+            "key": "hyperliquid",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "ink": {
+            "name": "Ink",
+            "key": "ink",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "iotex": {
+            "name": "IoTeX",
+            "key": "iotex",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "katana": {
+            "name": "Katana",
+            "key": "katana",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "kava": {
+            "name": "Kava",
+            "key": "kava",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "lens": {
+            "name": "Lens",
+            "key": "lens",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "lighter": {
+            "name": "Lighter",
+            "key": "lighter",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "linea": {
+            "name": "Linea",
+            "key": "linea",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "manta": {
+            "name": "Manta",
+            "key": "manta",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "mantle": {
+            "name": "Mantle",
+            "key": "mantle",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "merlin": {
+            "name": "Merlin",
+            "key": "merlin",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "metis": {
+            "name": "Metis",
+            "key": "metis",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "mint": {
+            "name": "Mint",
+            "key": "mint",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "mode": {
+            "name": "Mode",
+            "key": "mode",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "morph": {
+            "name": "Morph",
+            "key": "morph",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "op_bnb": {
+            "name": "opBNB",
+            "key": "op_bnb",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "optimism": {
+            "name": "Optimism",
+            "key": "optimism",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "plasma": {
+            "name": "Plasma",
+            "key": "plasma",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "plasmatestnet": {
+            "name": "Plasma Testnet",
+            "key": "plasmatestnet",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "plume": {
+            "name": "Plume",
+            "key": "plume",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "polygon": {
+            "name": "Polygon",
+            "key": "polygon",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "polygon_zkevm": {
+            "name": "Polygon zkEVM",
+            "key": "polygon_zkevm",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "rari": {
+            "name": "Rari",
+            "key": "rari",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "rsk": {
+            "name": "Rootstock",
+            "key": "rsk",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "scroll": {
+            "name": "Scroll",
+            "key": "scroll",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "shib": {
+            "name": "Shibarium",
+            "key": "shib",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "solana": {
+            "name": "Solana",
+            "key": "solana",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "soneium": {
+            "name": "Soneium",
+            "key": "soneium",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "sonic": {
+            "name": "Sonic",
+            "key": "sonic",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "sophon": {
+            "name": "Sophon",
+            "key": "sophon",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "starknet": {
+            "name": "Starknet",
+            "key": "starknet",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "swellchain": {
+            "name": "SwellChain",
+            "key": "swellchain",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "tac": {
+            "name": "TAC",
+            "key": "tac",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "taiko": {
+            "name": "Taiko",
+            "key": "taiko",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "telos": {
+            "name": "Telos",
+            "key": "telos",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "unichain": {
+            "name": "Unichain",
+            "key": "unichain",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "wc": {
+            "name": "World Chain",
+            "key": "wc",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "xlayer": {
+            "name": "X Layer",
+            "key": "xlayer",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "era": {
+            "name": "zkSync Era",
+            "key": "era",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          },
+          "zora": {
+            "name": "Zora",
+            "key": "zora",
+            "value": "0",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "WALLET": {
+                "assets": [],
+                "name": "wallet",
+                "protocolPositions": [],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "0",
+                "unlockAt": "0"
+              }
+            }
+          }
+        }
+      },
+      "revert": {
+        "name": "Revert",
+        "key": "revert",
+        "value": "67.86391535136355150671",
+        "totalCostBasis": "N/A",
+        "totalClosedPnl": "N/A",
+        "totalOpenPnl": "N/A",
+        "chains": {
+          "arbitrum": {
+            "name": "Arbitrum",
+            "key": "arbitrum",
+            "value": "67.86391535136355150671",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "LENDING": {
+                "assets": [],
+                "name": "Lending",
+                "protocolPositions": [
+                  {
+                    "assets": [],
+                    "borrowAssets": [
+                      {
+                        "balance": "20.155964",
+                        "chainContract": "arbitrum:0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                        "chainKey": "arbitrum",
+                        "contract": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                        "decimal": "6",
+                        "name": "usd coin",
+                        "openPnl": "N/A",
+                        "price": "0.999799",
+                        "priceSource": "debank",
+                        "symbol": "usdc",
+                        "totalCostBasis": "N/A",
+                        "value": "20.151912651236"
+                      }
+                    ],
+                    "dexAssets": [],
+                    "marginAssets": [],
+                    "baseAssets": [],
+                    "quoteAssets": [],
+                    "collateralizeNFTAssets": [],
+                    "side": "",
+                    "siteUrl": "https://revert.finance",
+                    "healthRate": "0",
+                    "name": "wbtc / weth",
+                    "rewardAssets": [
+                      {
+                        "balance": "0.00000707",
+                        "chainContract": "arbitrum:0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                        "chainKey": "arbitrum",
+                        "contract": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                        "decimal": "8",
+                        "name": "wrapped bitcoin",
+                        "openPnl": "N/A",
+                        "price": "103371.22",
+                        "priceSource": "debank",
+                        "symbol": "wbtc",
+                        "totalCostBasis": "N/A",
+                        "value": "0.7308345254"
+                      },
+                      {
+                        "balance": "0.000206611800611817",
+                        "chainContract": "arbitrum:0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                        "chainKey": "arbitrum",
+                        "contract": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                        "decimal": "18",
+                        "name": "weth",
+                        "openPnl": "N/A",
+                        "price": "3451.56",
+                        "priceSource": "debank",
+                        "symbol": "weth",
+                        "totalCostBasis": "N/A",
+                        "value": "0.71313302651972308452"
+                      }
+                    ],
+                    "supplyAssets": [
+                      {
+                        "balance": "0.0004186870721986635",
+                        "chainContract": "arbitrum:0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                        "chainKey": "arbitrum",
+                        "contract": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                        "decimal": "8",
+                        "name": "wrapped bitcoin",
+                        "openPnl": "N/A",
+                        "price": "103371.22",
+                        "priceSource": "debank",
+                        "symbol": "wbtc",
+                        "totalCostBasis": "N/A",
+                        "value": "43.28019345140392836447"
+                      },
+                      {
+                        "balance": "0.012542637821528787",
+                        "chainContract": "arbitrum:0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                        "chainKey": "arbitrum",
+                        "contract": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                        "decimal": "18",
+                        "name": "weth",
+                        "openPnl": "N/A",
+                        "price": "3451.56",
+                        "priceSource": "debank",
+                        "symbol": "weth",
+                        "totalCostBasis": "N/A",
+                        "value": "43.29166699927590005772"
+                      }
+                    ],
+                    "totalCostBasis": "N/A",
+                    "totalClosedPnl": "N/A",
+                    "totalOpenPnl": "N/A",
+                    "unlockAt": "0",
+                    "vaultAddress": "",
+                    "poolAddress": "0x74e6afef5705beb126c6d3bf46f8fad8f3e07825:lending",
+                    "value": "67.86391535136355150671"
+                  }
+                ],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "67.86391535136355150671",
+                "unlockAt": "0"
+              }
+            }
+          }
+        }
+      },
+      "hyperliquid": {
+        "name": "Hyperliquid",
+        "key": "hyperliquid",
+        "value": "33.947919",
+        "totalCostBasis": "N/A",
+        "totalClosedPnl": "N/A",
+        "totalOpenPnl": "N/A",
+        "chains": {
+          "hyperliquid": {
+            "name": "Hyperliquid",
+            "key": "hyperliquid",
+            "value": "33.947919",
+            "totalCostBasis": "N/A",
+            "totalClosedPnl": "N/A",
+            "totalOpenPnl": "N/A",
+            "protocolPositions": {
+              "MARGIN": {
+                "assets": [],
+                "name": "Margin",
+                "protocolPositions": [
+                  {
+                    "assets": [],
+                    "borrowAssets": [],
+                    "dexAssets": [
+                      {
+                        "balance": "0",
+                        "chainContract": "",
+                        "chainKey": "",
+                        "contract": "",
+                        "decimal": "0",
+                        "entryPrice": "0",
+                        "fundingAllTime": "0",
+                        "fundingSinceChange": "0",
+                        "fundingSinceOpen": "0",
+                        "leverage": "0",
+                        "leverageType": "",
+                        "liquidationPrice": "0",
+                        "marginUsed": "0.068934",
+                        "name": "wallet",
+                        "openPnl": "0",
+                        "price": "0",
+                        "priceSource": "hyperliquid",
+                        "returnOnEquity": "0",
+                        "symbol": "wallet",
+                        "totalCostBasis": "0",
+                        "type": "ONEWAY",
+                        "value": "0"
+                      },
+                      {
+                        "balance": "-0.00039",
+                        "chainContract": "",
+                        "chainKey": "hyperliquid",
+                        "contract": "",
+                        "decimal": "0",
+                        "entryPrice": "112700",
+                        "fundingAllTime": "-0.320247",
+                        "fundingSinceChange": "-0.320247",
+                        "fundingSinceOpen": "-0.320247",
+                        "leverage": "40",
+                        "leverageType": "isolated",
+                        "liquidationPrice": "137894.571699905",
+                        "marginUsed": "14.145009",
+                        "name": "BTC",
+                        "openPnl": "3.64689",
+                        "price": "103349",
+                        "priceSource": "hyperliquid",
+                        "returnOnEquity": "3.3188997338",
+                        "symbol": "btc",
+                        "totalCostBasis": "0",
+                        "type": "ONEWAY",
+                        "value": "40.30611"
+                      },
+                      {
+                        "balance": "-0.0133",
+                        "chainContract": "",
+                        "chainKey": "hyperliquid",
+                        "contract": "",
+                        "decimal": "0",
+                        "entryPrice": "4110.4",
+                        "fundingAllTime": "-0.27376",
+                        "fundingSinceChange": "-0.27376",
+                        "fundingSinceOpen": "-0.27376",
+                        "leverage": "20",
+                        "leverageType": "isolated",
+                        "liquidationPrice": "4839.3701901813",
+                        "marginUsed": "19.733976",
+                        "name": "ETH",
+                        "openPnl": "8.7514",
+                        "price": "3452.4",
+                        "priceSource": "hyperliquid",
+                        "returnOnEquity": "3.2016348774",
+                        "symbol": "eth",
+                        "totalCostBasis": "0",
+                        "type": "ONEWAY",
+                        "value": "45.91692"
+                      }
+                    ],
+                    "marginAssets": [],
+                    "baseAssets": [],
+                    "quoteAssets": [],
+                    "collateralizeNFTAssets": [],
+                    "side": "",
+                    "siteUrl": "",
+                    "healthRate": "0",
+                    "name": "HyperLiquid Margin",
+                    "rewardAssets": [],
+                    "supplyAssets": [],
+                    "totalCostBasis": "N/A",
+                    "totalClosedPnl": "N/A",
+                    "totalOpenPnl": "N/A",
+                    "unlockAt": "0",
+                    "vaultAddress": "",
+                    "poolAddress": "",
+                    "value": "33.947919"
+                  }
+                ],
+                "totalOpenPnl": "N/A",
+                "totalCostBasis": "N/A",
+                "totalValue": "33.947919",
+                "unlockAt": "0"
+              }
+            }
+          }
+        }
+      }
+    },
+    "chains": {
+      "arbitrum": {
+        "name": "Arbitrum",
+        "key": "arbitrum",
+        "chainId": "42161",
+        "value": "68.6487351238271322642",
+        "valuePercentile": "66.911280596902129322661935033282151796208318455432",
+        "totalCostBasis": "N/A",
+        "totalClosedPnl": "N/A",
+        "totalOpenPnl": "N/A"
+      },
+      "hyperliquid": {
+        "name": "Hyperliquid",
+        "key": "hyperliquid",
+        "chainId": "998",
+        "value": "33.947919",
+        "valuePercentile": "33.088719403097870677338064966717848203791681544568",
+        "totalCostBasis": "N/A",
+        "totalClosedPnl": "N/A",
+        "totalOpenPnl": "N/A"
+      }
+    }
+  }
+]

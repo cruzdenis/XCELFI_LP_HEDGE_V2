@@ -1,11 +1,10 @@
 """
-Octav.fi API Client V2
+Octav.fi API Client
 Fetches portfolio data including LP positions and Hyperliquid perpetual positions
-Fixed to work with actual API response structure
 """
 
 import requests
-from typing import Dict, List
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 
 
@@ -18,7 +17,6 @@ class LPPosition:
     price: float
     value: float
     chain: str
-    position_type: str  # 'supply' or 'reward'
 
 
 @dataclass
@@ -28,10 +26,10 @@ class PerpPosition:
     size: float  # Negative for short
     mark_price: float
     position_value: float
-    margin_used: float
+    margin_value: float
     entry_price: float
     open_pnl: float
-    funding_all_time: float
+    funding: float
     leverage: str
 
 
@@ -106,43 +104,25 @@ class OctavClient:
         # Get assetByProtocols
         assets_by_protocol = portfolio_data.get("assetByProtocols", {})
         
-        # Look for Revert Finance
-        revert_data = assets_by_protocol.get("revert", {})
-        if revert_data:
-            chains = revert_data.get("chains", {})
-            for chain_key, chain_data in chains.items():
-                protocol_positions = chain_data.get("protocolPositions", {})
-                for proto_key, proto_data in protocol_positions.items():
-                    # protocolPositions contains an array of positions
-                    positions_array = proto_data.get("protocolPositions", [])
-                    for position_item in positions_array:
-                        # Extract supply assets
-                        supply_assets = position_item.get("supplyAssets", [])
-                        for asset in supply_assets:
-                            position = LPPosition(
-                                protocol="Revert Finance",
-                                token_symbol=asset.get("symbol", ""),
-                                balance=float(asset.get("balance", 0)),
-                                price=float(asset.get("price", 0)),
-                                value=float(asset.get("value", 0)),
-                                chain=chain_key,
-                                position_type="supply"
-                            )
-                            lp_positions.append(position)
-                        
-                        # Extract reward assets
-                        reward_assets = position_item.get("rewardAssets", [])
-                        for asset in reward_assets:
-                            position = LPPosition(
-                                protocol="Revert Finance",
-                                token_symbol=asset.get("symbol", ""),
-                                balance=float(asset.get("balance", 0)),
-                                price=float(asset.get("price", 0)),
-                                value=float(asset.get("value", 0)),
-                                chain=chain_key,
-                                position_type="reward"
-                            )
-                            lp_positions.append(position)
+        # Look for Revert Finance, Uniswap V3, and other DEX protocols
+        lp_protocols = ["revert", "uniswap_v3", "uniswap_v2", "aerodrome", "velodrome"]
+        
+        for protocol_key, protocol_data in assets_by_protocol.items():
+            # Check if this is an LP protocol
+            if any(lp_proto in protocol_key.lower() for lp_proto in lp_protocols):
+                protocol_name = protocol_data.get("name", protocol_key)
+                assets = protocol_data.get("assets", [])
+                
+                for asset in assets:
+                    position = LPPosition(
+                        protocol=protocol_name,
+                        token_symbol=asset.get("symbol", ""),
+                        balance=float(asset.get("balance", 0)),
+                        price=float(asset.get("price", 0)),
+                        value=float(asset.get("value", 0)),
+                        chain=asset.get("chain", "unknown")
+                    )
+                    lp_positions.append(position)
         
         return lp_positions
     
@@ -165,35 +145,32 @@ class OctavClient:
         assets_by_protocol = portfolio_data.get("assetByProtocols", {})
         
         # Look for Hyperliquid protocol
-        hl_data = assets_by_protocol.get("hyperliquid", {})
-        if hl_data:
-            chains = hl_data.get("chains", {})
-            for chain_key, chain_data in chains.items():
-                protocol_positions = chain_data.get("protocolPositions", {})
-                margin_data = protocol_positions.get("MARGIN", {})
+        for protocol_key, protocol_data in assets_by_protocol.items():
+            if "hyperliquid" in protocol_key.lower():
+                # Hyperliquid positions are in the assets array
+                # But we need more detailed data - this is a limitation of the Portfolio endpoint
+                # For now, we'll extract basic info from assets
+                assets = protocol_data.get("assets", [])
                 
-                # Get protocol positions (which contain dexAssets)
-                proto_positions = margin_data.get("protocolPositions", [])
-                for proto_pos in proto_positions:
-                    dex_assets = proto_pos.get("dexAssets", [])
-                    for asset in dex_assets:
-                        balance = float(asset.get("balance", 0))
-                        symbol = asset.get("symbol", "")
-                        
-                        # Skip wallet entry and zero balances
-                        if symbol.lower() == "wallet" or balance == 0:
-                            continue
-                        
+                for asset in assets:
+                    # Note: The Portfolio endpoint doesn't give us detailed perp data
+                    # We would need a different endpoint or parse from the web interface
+                    # For now, create basic position info
+                    symbol = asset.get("symbol", "")
+                    balance = float(asset.get("balance", 0))
+                    
+                    # Negative balance indicates short position
+                    if balance != 0:
                         position = PerpPosition(
                             symbol=symbol,
                             size=balance,
                             mark_price=float(asset.get("price", 0)),
                             position_value=float(asset.get("value", 0)),
-                            margin_used=float(asset.get("marginUsed", 0)),
-                            entry_price=float(asset.get("entryPrice", 0)),
-                            open_pnl=float(asset.get("openPnl", 0)),
-                            funding_all_time=float(asset.get("fundingAllTime", 0)),
-                            leverage=asset.get("leverage", "N/A")
+                            margin_value=0.0,  # Not available in portfolio endpoint
+                            entry_price=0.0,  # Not available in portfolio endpoint
+                            open_pnl=0.0,  # Not available in portfolio endpoint
+                            funding=0.0,  # Not available in portfolio endpoint
+                            leverage="N/A"  # Not available in portfolio endpoint
                         )
                         perp_positions.append(position)
         
