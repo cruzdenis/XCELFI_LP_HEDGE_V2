@@ -99,6 +99,7 @@ with st.sidebar:
     
     # Refresh button
     if st.button("🔄 Atualizar Dados", use_container_width=True):
+        st.cache_data.clear()
         st.rerun()
 
 # Main content
@@ -117,164 +118,202 @@ if not octav_api_key:
     """)
     st.stop()
 
-# Initialize clients
-try:
-    with st.spinner("🔄 Conectando ao Octav.fi..."):
-        octav_client = OctavClient(octav_api_key)
-        analyzer = DeltaNeutralAnalyzer(tolerance_pct=tolerance_pct)
-    
-    # Fetch portfolio data
-    with st.spinner("📊 Buscando dados do portfólio..."):
-        portfolio = octav_client.get_portfolio(wallet_address)
-    
-    if not portfolio:
-        st.error("❌ Erro ao buscar dados do portfólio. Verifique a API key e o endereço da wallet.")
-        st.stop()
-    
-    # Display net worth
-    networth = portfolio.get("networth", "0")
-    st.metric("💰 Net Worth", f"${float(networth):.2f}")
-    
-    st.markdown("---")
-    
-    # Create tabs
-    tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🏦 Posições LP", "📉 Posições Short"])
-    
-    with tab1:
-        st.subheader("🎯 Análise Delta-Neutral")
+# Cache portfolio data to avoid multiple API calls
+@st.cache_data(ttl=60, show_spinner=False)
+def fetch_portfolio_data(api_key, wallet):
+    """Fetch and cache portfolio data"""
+    try:
+        client = OctavClient(api_key)
+        portfolio = client.get_portfolio(wallet)
+        if not portfolio:
+            return None
         
-        # Get balances
-        lp_balances = octav_client.get_lp_token_balances(wallet_address)
-        short_balances = octav_client.get_short_balances(wallet_address)
+        # Extract all data in one go
+        lp_positions = client.extract_lp_positions(portfolio)
+        perp_positions = client.extract_perp_positions(portfolio)
+        lp_balances = {}
+        short_balances = {}
         
-        # Perform analysis
-        suggestions = analyzer.compare_positions(lp_balances, short_balances)
+        # Aggregate LP balances
+        for pos in lp_positions:
+            symbol = client.normalize_symbol(pos.token_symbol)
+            if symbol in lp_balances:
+                lp_balances[symbol] += pos.balance
+            else:
+                lp_balances[symbol] = pos.balance
         
-        if not suggestions:
-            st.info("ℹ️ Nenhuma posição encontrada para comparar.")
-        else:
-            # Summary metrics
-            balanced = [s for s in suggestions if s.status == "balanced"]
-            under_hedged = [s for s in suggestions if s.status == "under_hedged"]
-            over_hedged = [s for s in suggestions if s.status == "over_hedged"]
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("✅ Balanceadas", len(balanced))
-            with col2:
-                st.metric("⚠️ Sub-Hedge", len(under_hedged))
-            with col3:
-                st.metric("⚠️ Sobre-Hedge", len(over_hedged))
-            
-            st.markdown("---")
-            
-            # Detailed analysis
-            for s in suggestions:
-                with st.expander(f"**{s.token}** - {s.status.upper().replace('_', ' ')}", expanded=True):
-                    col1, col2, col3 = st.columns(3)
-                    
-                    with col1:
-                        st.metric("LP Balance", f"{s.lp_balance:.6f}")
-                    with col2:
-                        st.metric("Short Balance", f"{s.short_balance:.6f}")
-                    with col3:
-                        st.metric("Diferença", f"{s.difference:+.6f} ({s.difference_pct:.2f}%)")
-                    
-                    if s.action != "none":
-                        if s.action == "increase_short":
-                            st.warning(f"➡️ **AÇÃO:** AUMENTAR SHORT em {s.adjustment_amount:.6f} {s.token}")
-                        else:
-                            st.warning(f"➡️ **AÇÃO:** DIMINUIR SHORT em {s.adjustment_amount:.6f} {s.token}")
-                    else:
-                        st.success("✅ Posição balanceada - nenhuma ação necessária")
-            
-            # Action summary
-            if under_hedged or over_hedged:
-                st.markdown("---")
-                st.subheader("📋 Resumo de Ações")
-                
-                if under_hedged:
-                    st.markdown("**🔺 AUMENTAR SHORT:**")
-                    for s in under_hedged:
-                        st.write(f"- {s.token}: +{s.adjustment_amount:.6f}")
-                
-                if over_hedged:
-                    st.markdown("**🔻 DIMINUIR SHORT:**")
-                    for s in over_hedged:
-                        st.write(f"- {s.token}: -{s.adjustment_amount:.6f}")
-                
-                st.info("⚠️ **NOTA:** Execução via Hyperliquid API requer configuração adicional")
-    
-    with tab2:
-        st.subheader("🏦 Posições LP (Liquidity Provider)")
+        # Aggregate short balances
+        for pos in perp_positions:
+            if pos.size < 0:  # Short position
+                symbol = client.normalize_symbol(pos.symbol)
+                abs_size = abs(pos.size)
+                if symbol in short_balances:
+                    short_balances[symbol] += abs_size
+                else:
+                    short_balances[symbol] = abs_size
         
-        lp_positions = octav_client.extract_lp_positions(portfolio)
-        
-        if not lp_positions:
-            st.info("ℹ️ Nenhuma posição LP encontrada.")
-        else:
-            for pos in lp_positions:
-                with st.container():
-                    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
-                    with col1:
-                        st.write(f"**{pos.protocol}** ({pos.chain})")
-                    with col2:
-                        st.write(f"{pos.token_symbol}")
-                    with col3:
-                        st.write(f"{pos.balance:.6f}")
-                    with col4:
-                        st.write(f"${pos.value:.2f}")
-            
-            st.markdown("---")
-            st.subheader("📊 Balanços Agregados")
-            
-            for token, balance in sorted(lp_balances.items()):
-                col1, col2 = st.columns([1, 1])
-                with col1:
-                    st.write(f"**{token}**")
-                with col2:
-                    st.write(f"{balance:.6f}")
-    
-    with tab3:
-        st.subheader("📉 Posições Short (Hyperliquid)")
-        
-        perp_positions = octav_client.extract_perp_positions(portfolio)
-        
-        if not perp_positions:
-            st.info("ℹ️ Nenhuma posição perpétua encontrada.")
-        else:
-            for pos in perp_positions:
-                direction = "SHORT" if pos.size < 0 else "LONG"
-                color = "red" if pos.size < 0 else "green"
-                
-                with st.container():
-                    st.markdown(f"**{pos.symbol} {direction}** (Leverage: {pos.leverage}x)")
-                    
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1:
-                        st.metric("Size", f"{pos.size:.6f}")
-                    with col2:
-                        st.metric("Mark Price", f"${pos.mark_price:.2f}")
-                    with col3:
-                        st.metric("Position Value", f"${pos.position_value:.2f}")
-                    with col4:
-                        pnl_color = "normal" if pos.open_pnl >= 0 else "inverse"
-                        st.metric("Open P&L", f"${pos.open_pnl:.2f}", delta_color=pnl_color)
-                    
-                    st.markdown("---")
-            
-            st.subheader("📊 Balanços Agregados Short")
-            
-            for token, balance in sorted(short_balances.items()):
-                col1, col2 = st.columns([1, 1])
-                with col1:
-                    st.write(f"**{token}**")
-                with col2:
-                    st.write(f"{balance:.6f}")
+        return {
+            'portfolio': portfolio,
+            'lp_positions': lp_positions,
+            'perp_positions': perp_positions,
+            'lp_balances': lp_balances,
+            'short_balances': short_balances
+        }
+    except Exception as e:
+        st.error(f"❌ Erro ao buscar dados: {str(e)}")
+        return None
 
-except Exception as e:
-    st.error(f"❌ Erro: {str(e)}")
-    st.exception(e)
+# Fetch data with loading indicator
+with st.spinner("🔄 Carregando dados do Octav.fi..."):
+    data = fetch_portfolio_data(octav_api_key, wallet_address)
+
+if not data:
+    st.error("❌ Erro ao buscar dados do portfólio. Verifique a API key e o endereço da wallet.")
+    st.info("💡 **Dica:** Certifique-se de que a API key está correta e que a wallet tem posições ativas.")
+    st.stop()
+
+# Display net worth
+portfolio = data['portfolio']
+networth = portfolio.get("networth", "0")
+st.metric("💰 Net Worth", f"${float(networth):.2f}")
+
+st.markdown("---")
+
+# Create tabs
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🏦 Posições LP", "📉 Posições Short"])
+
+with tab1:
+    st.subheader("🎯 Análise Delta-Neutral")
+    
+    # Get balances from cached data
+    lp_balances = data['lp_balances']
+    short_balances = data['short_balances']
+    
+    # Perform analysis
+    analyzer = DeltaNeutralAnalyzer(tolerance_pct=tolerance_pct)
+    suggestions = analyzer.compare_positions(lp_balances, short_balances)
+    
+    if not suggestions:
+        st.info("ℹ️ Nenhuma posição encontrada para comparar.")
+    else:
+        # Summary metrics
+        balanced = [s for s in suggestions if s.status == "balanced"]
+        under_hedged = [s for s in suggestions if s.status == "under_hedged"]
+        over_hedged = [s for s in suggestions if s.status == "over_hedged"]
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("✅ Balanceadas", len(balanced))
+        with col2:
+            st.metric("⚠️ Sub-Hedge", len(under_hedged))
+        with col3:
+            st.metric("⚠️ Sobre-Hedge", len(over_hedged))
+        
+        st.markdown("---")
+        
+        # Detailed analysis
+        for s in suggestions:
+            with st.expander(f"**{s.token}** - {s.status.upper().replace('_', ' ')}", expanded=True):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("LP Balance", f"{s.lp_balance:.6f}")
+                with col2:
+                    st.metric("Short Balance", f"{s.short_balance:.6f}")
+                with col3:
+                    st.metric("Diferença", f"{s.difference:+.6f} ({s.difference_pct:.2f}%)")
+                
+                if s.action != "none":
+                    if s.action == "increase_short":
+                        st.warning(f"➡️ **AÇÃO:** AUMENTAR SHORT em {s.adjustment_amount:.6f} {s.token}")
+                    else:
+                        st.warning(f"➡️ **AÇÃO:** DIMINUIR SHORT em {s.adjustment_amount:.6f} {s.token}")
+                else:
+                    st.success("✅ Posição balanceada - nenhuma ação necessária")
+        
+        # Action summary
+        if under_hedged or over_hedged:
+            st.markdown("---")
+            st.subheader("📋 Resumo de Ações")
+            
+            if under_hedged:
+                st.markdown("**🔺 AUMENTAR SHORT:**")
+                for s in under_hedged:
+                    st.write(f"- {s.token}: +{s.adjustment_amount:.6f}")
+            
+            if over_hedged:
+                st.markdown("**🔻 DIMINUIR SHORT:**")
+                for s in over_hedged:
+                    st.write(f"- {s.token}: -{s.adjustment_amount:.6f}")
+            
+            st.info("⚠️ **NOTA:** Execução via Hyperliquid API requer configuração adicional")
+
+with tab2:
+    st.subheader("🏦 Posições LP (Liquidity Provider)")
+    
+    lp_positions = data['lp_positions']
+    
+    if not lp_positions:
+        st.info("ℹ️ Nenhuma posição LP encontrada.")
+    else:
+        for pos in lp_positions:
+            with st.container():
+                col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                with col1:
+                    st.write(f"**{pos.protocol}** ({pos.chain})")
+                with col2:
+                    st.write(f"{pos.token_symbol}")
+                with col3:
+                    st.write(f"{pos.balance:.6f}")
+                with col4:
+                    st.write(f"${pos.value:.2f}")
+        
+        st.markdown("---")
+        st.subheader("📊 Balanços Agregados")
+        
+        for token, balance in sorted(data['lp_balances'].items()):
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                st.write(f"**{token}**")
+            with col2:
+                st.write(f"{balance:.6f}")
+
+with tab3:
+    st.subheader("📉 Posições Short (Hyperliquid)")
+    
+    perp_positions = data['perp_positions']
+    
+    if not perp_positions:
+        st.info("ℹ️ Nenhuma posição perpétua encontrada.")
+    else:
+        for pos in perp_positions:
+            direction = "SHORT" if pos.size < 0 else "LONG"
+            color = "red" if pos.size < 0 else "green"
+            
+            with st.container():
+                st.markdown(f"**{pos.symbol} {direction}** (Leverage: {pos.leverage}x)")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Size", f"{pos.size:.6f}")
+                with col2:
+                    st.metric("Mark Price", f"${pos.mark_price:.2f}")
+                with col3:
+                    st.metric("Position Value", f"${pos.position_value:.2f}")
+                with col4:
+                    pnl_color = "normal" if pos.open_pnl >= 0 else "inverse"
+                    st.metric("Open P&L", f"${pos.open_pnl:.2f}", delta_color=pnl_color)
+                
+                st.markdown("---")
+        
+        st.subheader("📊 Balanços Agregados Short")
+        
+        for token, balance in sorted(data['short_balances'].items()):
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                st.write(f"**{token}**")
+            with col2:
+                st.write(f"{balance:.6f}")
 
 # Footer
 st.markdown("---")
