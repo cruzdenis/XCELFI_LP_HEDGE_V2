@@ -1,1 +1,6 @@
+streamlit==1.28.0
 requests==2.31.0
+plotly==5.17.0
+web3==6.11.0
+python-dotenv==1.0.0
+eth-account==0.9.0
