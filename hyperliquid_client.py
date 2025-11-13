@@ -121,11 +121,16 @@ class HyperliquidClient:
             slippage = 0.05
             limit_px = mid_price * (1 + slippage) if is_buy else mid_price * (1 - slippage)
             
+            # Round size to appropriate precision
+            # BTC/ETH typically use 4 decimal places for size
+            # Round to 5 significant figures to avoid rounding errors
+            rounded_size = round(abs(size), 5)
+            
             # Place order using correct SDK method signature
             result = self.exchange.order(
                 name=symbol,
                 is_buy=is_buy,
-                sz=abs(size),
+                sz=rounded_size,
                 limit_px=limit_px,
                 order_type=order_type,
                 reduce_only=reduce_only
