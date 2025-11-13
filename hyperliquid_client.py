@@ -43,8 +43,7 @@ class HyperliquidClient:
         if self.can_execute:
             try:
                 from hyperliquid.exchange import Exchange
-                from hyperliquid.utils import constants
-                self.exchange = Exchange(wallet_address, private_key, constants.MAINNET_API_URL)
+                self.exchange = Exchange(wallet_address, private_key)
             except ImportError:
                 self.can_execute = False
                 self.exchange = None
