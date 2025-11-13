@@ -127,7 +127,7 @@ class HyperliquidClient:
             }
             
             # Place order
-            result = self.exchange.order(order, grouping="na")
+            result = self.exchange.order(order)
             
             # Parse result
             if result.get("status") == "ok":
