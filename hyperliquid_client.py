@@ -86,15 +86,30 @@ class HyperliquidClient:
         - Max 5 significant figures
         - Max (6 - szDecimals) decimal places for perps
         """
+        from math import log10, floor
+        
         sz_decimals = self.asset_meta.get(symbol, {}).get('szDecimals', 3)
         max_decimals = 6  # For perps
+        max_sig_figs = 5  # Hyperliquid limit
         
-        # Round to max decimal places allowed
+        # First, limit to 5 significant figures
+        if price == 0:
+            return 0.0
+        
+        # Calculate number of significant figures
+        magnitude = floor(log10(abs(price)))
+        sig_fig_decimals = max_sig_figs - magnitude - 1
+        
+        # Round to 5 significant figures
+        price_5sig = round(price, sig_fig_decimals)
+        
+        # Then apply max decimal places constraint
         max_price_decimals = max_decimals - sz_decimals
-        rounded = round(price, max_price_decimals)
+        final_price = round(price_5sig, max_price_decimals)
         
-        # Format to remove trailing zeros
-        return float(f"{rounded:.{max_price_decimals}f}".rstrip('0').rstrip('.'))
+        # Format to remove trailing zeros (required for signing)
+        formatted = f"{final_price:.{max_price_decimals}f}".rstrip('0').rstrip('.')
+        return float(formatted)
     
     def get_account_value(self) -> Optional[float]:
         """
