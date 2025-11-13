@@ -125,6 +125,21 @@ with tab1:
                 config_mgr.save_config(api_key, wallet, tolerance, hyperliquid_key)
                 st.success("✅ Configuração salva com sucesso! Vá para a aba Dashboard.")
                 st.balloons()
+                
+                # Validate Hyperliquid API if private key provided
+                if hyperliquid_key:
+                    with st.spinner("🔍 Validando Hyperliquid API..."):
+                        try:
+                            from hyperliquid_client import HyperliquidClient
+                            client = HyperliquidClient(wallet, hyperliquid_key)
+                            account_value = client.get_account_value()
+                            
+                            if account_value is not None:
+                                st.success(f"✅ Hyperliquid conectado! Saldo: ${account_value:,.2f}")
+                            else:
+                                st.warning("⚠️ Não foi possível obter saldo da Hyperliquid. Verifique a private key.")
+                        except Exception as e:
+                            st.error(f"❌ Erro ao validar Hyperliquid: {str(e)}")
             else:
                 st.error("❌ Preencha API Key e Wallet Address")
     

@@ -43,10 +43,10 @@ class HyperliquidClient:
         if self.can_execute:
             try:
                 from hyperliquid.exchange import Exchange
-                from hyperliquid.utils import signing
+                from eth_account import Account
                 
                 # Create LocalAccount from private key
-                wallet = signing.get_account_from_secret(private_key)
+                wallet = Account.from_key(private_key)
                 self.exchange = Exchange(wallet)
             except ImportError:
                 self.can_execute = False
@@ -54,6 +54,25 @@ class HyperliquidClient:
                 print("Warning: hyperliquid-python-sdk not installed. Execution disabled.")
         else:
             self.exchange = None
+    
+    def get_account_value(self) -> Optional[float]:
+        """
+        Get total account value in USD from Hyperliquid
+        Returns None if execution is disabled or error occurs
+        """
+        if not self.can_execute or not self.exchange:
+            return None
+        
+        try:
+            # Get user state which includes account value
+            user_state = self.exchange.info.user_state(self.wallet_address)
+            if user_state and 'marginSummary' in user_state:
+                account_value = float(user_state['marginSummary']['accountValue'])
+                return account_value
+        except Exception as e:
+            print(f"Error getting account value: {e}")
+        
+        return None
     
     def get_asset_index(self, symbol: str) -> Optional[int]:
         """Get asset index for a symbol"""
