@@ -110,7 +110,6 @@ with tab1:
                 config_mgr.save_config(api_key, wallet, tolerance)
                 st.success("✅ Configuração salva com sucesso!")
                 st.balloons()
-                st.rerun()
             else:
                 st.error("❌ Preencha API Key e Wallet Address")
     
@@ -118,7 +117,6 @@ with tab1:
         if st.button("🗑️ Limpar Configuração", use_container_width=True):
             config_mgr.clear_config()
             st.success("✅ Configuração removida")
-            st.rerun()
     
     st.markdown("---")
     
@@ -141,7 +139,7 @@ with tab2:
     
     if not config:
         st.warning("⚠️ Configure a API Key e Wallet na aba **Configuração** primeiro")
-        st.stop()
+    elif config:
     
     # Get config values
     api_key = config["api_key"]
@@ -205,15 +203,15 @@ with tab2:
                     st.success("✅ Dados sincronizados com sucesso!")
                 else:
                     st.error("❌ Erro ao carregar dados")
-                    st.stop()
+                    pass
             except Exception as e:
                 st.error(f"❌ Erro: {str(e)}")
-                st.stop()
+                pass
     
     # Check if data exists
     if 'portfolio_data' not in st.session_state:
         st.info("ℹ️ Clique em **Sincronizar Agora** para carregar os dados")
-        st.stop()
+        pass
     
     data = st.session_state.portfolio_data
     
@@ -303,7 +301,7 @@ with tab3:
     
     if 'portfolio_data' not in st.session_state:
         st.info("ℹ️ Sincronize os dados na aba **Dashboard** primeiro")
-        st.stop()
+        pass
     
     data = st.session_state.portfolio_data
     lp_positions = data['lp_positions']
