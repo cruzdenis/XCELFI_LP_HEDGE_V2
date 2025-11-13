@@ -17,12 +17,13 @@ class ConfigManager:
         self.config_file = self.config_dir / "config.json"
         self.history_file = self.config_dir / "history.json"
     
-    def save_config(self, api_key, wallet_address, tolerance_pct=5.0):
+    def save_config(self, api_key, wallet_address, tolerance_pct=5.0, hyperliquid_private_key=""):
         """Save configuration to file"""
         config = {
             "api_key": api_key,
             "wallet_address": wallet_address,
             "tolerance_pct": tolerance_pct,
+            "hyperliquid_private_key": hyperliquid_private_key,
             "saved_at": datetime.now().isoformat()
         }
         

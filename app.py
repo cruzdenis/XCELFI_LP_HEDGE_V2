@@ -76,6 +76,21 @@ with tab1:
             help="Endereço da wallet para monitorar",
             key="config_wallet"
         )
+        
+        st.markdown("### 🔐 Hyperliquid Execution (Opcional)")
+        
+        hyperliquid_key = st.text_input(
+            "Hyperliquid Private Key",
+            value=existing_config.get("hyperliquid_private_key", "") if existing_config else "",
+            type="password",
+            help="Private key da API wallet da Hyperliquid para execução automática. Deixe em branco para modo somente análise.",
+            key="config_hyperliquid_key"
+        )
+        
+        if hyperliquid_key:
+            st.success("✅ Execução automática habilitada")
+        else:
+            st.info("ℹ️ Modo somente análise (sem execução)")
     
     with col2:
         st.markdown("### ⚙️ Parâmetros")
@@ -107,8 +122,8 @@ with tab1:
     with col1:
         if st.button("💾 Salvar Configuração", use_container_width=True, type="primary"):
             if api_key and wallet:
-                config_mgr.save_config(api_key, wallet, tolerance)
-                st.success("✅ Configuração salva com sucesso!")
+                config_mgr.save_config(api_key, wallet, tolerance, hyperliquid_key)
+                st.success("✅ Configuração salva com sucesso! Vá para a aba Dashboard.")
                 st.balloons()
             else:
                 st.error("❌ Preencha API Key e Wallet Address")
@@ -293,6 +308,103 @@ with tab2:
                     st.markdown("**🔻 DIMINUIR SHORT:**")
                     for s in over_hedged:
                         st.write(f"- {s.token}: -{s.adjustment_amount:.6f}")
+                
+                st.markdown("---")
+                
+                # Execution button
+                hyperliquid_key = config.get("hyperliquid_private_key", "")
+                
+                if hyperliquid_key:
+                    st.markdown("### ⚡ Execução Automática")
+                    st.info("🚨 **ATENÇÃO:** Isso irá executar ordens reais na Hyperliquid!")
+                    
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        if st.button("⚡ Executar Ajustes", type="primary", use_container_width=True):
+                            st.session_state.confirm_execution = True
+                    
+                    # Confirmation dialog
+                    if st.session_state.get('confirm_execution', False):
+                        st.warning("⚠️ **CONFIRMAÇÃO NECESSÁRIA**")
+                        st.write("Você está prestes a executar as seguintes operações:")
+                        
+                        # Show what will be executed
+                        for s in under_hedged:
+                            st.write(f"• **{s.token}**: SELL {s.adjustment_amount:.6f} (aumentar short)")
+                        for s in over_hedged:
+                            st.write(f"• **{s.token}**: BUY {s.adjustment_amount:.6f} (diminuir short)")
+                        
+                        col1, col2, col3 = st.columns([1, 1, 2])
+                        with col1:
+                            if st.button("✅ Confirmar e Executar", type="primary"):
+                                # Execute trades
+                                from hyperliquid_client import HyperliquidClient
+                                
+                                client = HyperliquidClient(
+                                    wallet_address=wallet_address,
+                                    private_key=hyperliquid_key
+                                )
+                                
+                                if not client.can_execute:
+                                    st.error("❌ Erro: Não foi possível inicializar cliente Hyperliquid. Verifique se o SDK está instalado.")
+                                else:
+                                    # Prepare adjustments
+                                    adjustments = []
+                                    for s in under_hedged:
+                                        adjustments.append({
+                                            "token": s.token,
+                                            "action": "increase_short",
+                                            "amount": s.adjustment_amount
+                                        })
+                                    for s in over_hedged:
+                                        adjustments.append({
+                                            "token": s.token,
+                                            "action": "decrease_short",
+                                            "amount": s.adjustment_amount
+                                        })
+                                    
+                                    with st.spinner("🔄 Executando operações..."):
+                                        results = client.execute_adjustments(adjustments)
+                                    
+                                    # Display results
+                                    st.markdown("### 📋 Resultados da Execução")
+                                    
+                                    success_count = sum(1 for r in results if r['success'])
+                                    total_count = len(results)
+                                    
+                                    if success_count == total_count:
+                                        st.success(f"✅ Todas as {total_count} operações foram executadas com sucesso!")
+                                    else:
+                                        st.warning(f"⚠️ {success_count}/{total_count} operações executadas com sucesso")
+                                    
+                                    for r in results:
+                                        status_emoji = "✅" if r['success'] else "❌"
+                                        with st.expander(f"{status_emoji} {r['token']} - {r['action']}"):
+                                            st.write(f"**Amount:** {r['amount']:.6f}")
+                                            st.write(f"**Status:** {r['message']}")
+                                            if r.get('order_id'):
+                                                st.write(f"**Order ID:** {r['order_id']}")
+                                            if r.get('filled_size'):
+                                                st.write(f"**Filled Size:** {r['filled_size']:.6f}")
+                                            if r.get('avg_price'):
+                                                st.write(f"**Avg Price:** ${r['avg_price']:.2f}")
+                                    
+                                    # Clear confirmation state
+                                    st.session_state.confirm_execution = False
+                                    
+                                    # Suggest re-sync
+                                    st.info("🔄 Recomenda-se sincronizar novamente para ver as posições atualizadas")
+                        
+                        with col2:
+                            if st.button("❌ Cancelar"):
+                                st.session_state.confirm_execution = False
+                                st.rerun()
+                else:
+                    st.markdown("### ⚡ Execução Automática")
+                    st.warning("⚠️ Configure a **Hyperliquid Private Key** na aba **Configuração** para habilitar a execução automática")
+                    st.info("🛡️ **Modo Seguro:** Atualmente em modo somente análise (read-only)")
+            else:
+                st.success("🎉 Todas as posições estão balanceadas! Nenhuma ação necessária.")
 
 # ==================== TAB 3: POSIÇÕES LP ====================
     with tab3:
