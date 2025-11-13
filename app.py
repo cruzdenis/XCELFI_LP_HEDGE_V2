@@ -384,7 +384,7 @@ with tab2:
                                     # Display results
                                     st.markdown("### 📋 Resultados da Execução")
                                     
-                                    success_count = sum(1 for r in results if r['success'])
+                                    success_count = sum(1 for r in results if r['result'].success)
                                     total_count = len(results)
                                     
                                     if success_count == total_count:
@@ -393,16 +393,17 @@ with tab2:
                                         st.warning(f"⚠️ {success_count}/{total_count} operações executadas com sucesso")
                                     
                                     for r in results:
-                                        status_emoji = "✅" if r['success'] else "❌"
+                                        result = r['result']
+                                        status_emoji = "✅" if result.success else "❌"
                                         with st.expander(f"{status_emoji} {r['token']} - {r['action']}"):
                                             st.write(f"**Amount:** {r['amount']:.6f}")
-                                            st.write(f"**Status:** {r['message']}")
-                                            if r.get('order_id'):
-                                                st.write(f"**Order ID:** {r['order_id']}")
-                                            if r.get('filled_size'):
-                                                st.write(f"**Filled Size:** {r['filled_size']:.6f}")
-                                            if r.get('avg_price'):
-                                                st.write(f"**Avg Price:** ${r['avg_price']:.2f}")
+                                            st.write(f"**Status:** {result.message}")
+                                            if result.order_id:
+                                                st.write(f"**Order ID:** {result.order_id}")
+                                            if result.filled_size:
+                                                st.write(f"**Filled Size:** {result.filled_size:.6f}")
+                                            if result.avg_price:
+                                                st.write(f"**Avg Price:** ${result.avg_price:.2f}")
                                     
                                     # Clear confirmation state
                                     st.session_state.confirm_execution = False
