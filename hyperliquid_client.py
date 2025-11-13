@@ -1,43 +1,37 @@
-"""
-Hyperliquid Client
-Handles trading operations on Hyperliquid exchange
-"""
-
-import json
-from typing import Dict, List, Optional
+from typing import Optional, Dict
 from dataclasses import dataclass
 
 @dataclass
 class OrderResult:
-    """Result of an order operation"""
     success: bool
     message: str
-    order_id: Optional[int] = None
+    order_id: Optional[str] = None
     filled_size: Optional[float] = None
     avg_price: Optional[float] = None
 
 class HyperliquidClient:
-    """Client for Hyperliquid exchange API"""
+    """Client for Hyperliquid API operations"""
     
-    # Asset name to index mapping (common perpetuals)
+    # Asset mapping
     ASSET_MAP = {
-        "BTC": 0,
-        "ETH": 1,
-        "SOL": 2,
-        # Add more as needed
+        "BTC": "BTC",
+        "ETH": "ETH",
+        "SOL": "SOL",
+        "ARB": "ARB",
+        "AVAX": "AVAX",
+        "OP": "OP",
     }
     
-    def __init__(self, wallet_address: str, private_key: str = None):
+    def __init__(self, wallet_address: str, private_key: Optional[str] = None):
         """
         Initialize Hyperliquid client
         
         Args:
-            wallet_address: Public wallet address
-            private_key: Private key for signing (optional, only for execution)
+            wallet_address: Ethereum wallet address
+            private_key: Private key for signing transactions (optional)
         """
         self.wallet_address = wallet_address
-        self.private_key = private_key
-        self.can_execute = bool(private_key)
+        self.can_execute = private_key is not None
         
         # Only import SDK if private key is provided
         if self.can_execute:
@@ -105,29 +99,40 @@ class HyperliquidClient:
                 message="Cannot execute: No private key configured"
             )
         
-        # Get asset index
-        asset_index = self.get_asset_index(symbol)
-        if asset_index is None:
-            return OrderResult(
-                success=False,
-                message=f"Unknown asset: {symbol}"
-            )
+        # Normalize symbol
+        symbol = symbol.upper().replace("WBTC", "BTC").replace("WETH", "ETH")
         
         try:
-            # Prepare order
-            # For market orders, we use a limit order with aggressive price
-            # and IOC (Immediate or Cancel) time in force
-            order = {
-                "a": asset_index,
-                "b": is_buy,
-                "p": "0" if is_buy else "999999",  # Aggressive price for market execution
-                "s": str(abs(size)),
-                "r": reduce_only,
-                "t": {"limit": {"tif": "Ioc"}}  # Immediate or Cancel
-            }
+            # Get current price for slippage calculation
+            from hyperliquid.utils.types import OrderType
             
-            # Place order
-            result = self.exchange.order(order)
+            # Use market order with IOC (Immediate or Cancel)
+            order_type = {"limit": {"tif": "Ioc"}}
+            
+            # For market orders, use aggressive price
+            # Get mid price first
+            all_mids = self.exchange.info.all_mids()
+            if symbol not in all_mids:
+                return OrderResult(
+                    success=False,
+                    message=f"Unknown asset: {symbol}"
+                )
+            
+            mid_price = float(all_mids[symbol])
+            
+            # Apply 5% slippage for market execution
+            slippage = 0.05
+            limit_px = mid_price * (1 + slippage) if is_buy else mid_price * (1 - slippage)
+            
+            # Place order using correct SDK method signature
+            result = self.exchange.order(
+                name=symbol,
+                is_buy=is_buy,
+                sz=abs(size),
+                limit_px=limit_px,
+                order_type=order_type,
+                reduce_only=reduce_only
+            )
             
             # Parse result
             if result.get("status") == "ok":
@@ -148,25 +153,16 @@ class HyperliquidClient:
                             filled_size=float(filled.get("totalSz", 0)),
                             avg_price=float(filled.get("avgPx", 0))
                         )
-                    
-                    # Check if resting (shouldn't happen with IOC)
-                    elif "resting" in status:
+                    else:
+                        # Order placed but not filled
                         return OrderResult(
                             success=False,
-                            message="Order resting (unexpected for market order)",
-                            order_id=status["resting"].get("oid")
-                        )
-                    
-                    # Check for error
-                    elif "error" in status:
-                        return OrderResult(
-                            success=False,
-                            message=f"Order error: {status['error']}"
+                            message=f"Order not filled: {status}"
                         )
             
             return OrderResult(
                 success=False,
-                message=f"Unexpected response: {result}"
+                message=f"Order failed: {result}"
             )
             
         except Exception as e:
@@ -175,71 +171,28 @@ class HyperliquidClient:
                 message=f"Exception: {str(e)}"
             )
     
-    def increase_short(self, symbol: str, size: float) -> OrderResult:
+    def increase_short(self, symbol: str, amount: float) -> OrderResult:
         """
         Increase short position (sell)
         
         Args:
             symbol: Asset symbol
-            size: Amount to increase short by
+            amount: Amount to short (positive value)
             
         Returns:
             OrderResult
         """
-        return self.place_market_order(symbol, size, is_buy=False, reduce_only=False)
+        return self.place_market_order(symbol, amount, is_buy=False, reduce_only=False)
     
-    def decrease_short(self, symbol: str, size: float) -> OrderResult:
+    def decrease_short(self, symbol: str, amount: float) -> OrderResult:
         """
         Decrease short position (buy to close)
         
         Args:
             symbol: Asset symbol
-            size: Amount to decrease short by
+            amount: Amount to close (positive value)
             
         Returns:
             OrderResult
         """
-        return self.place_market_order(symbol, size, is_buy=True, reduce_only=True)
-    
-    def execute_adjustments(self, adjustments: List[Dict]) -> List[Dict]:
-        """
-        Execute multiple position adjustments
-        
-        Args:
-            adjustments: List of adjustment dicts with keys:
-                - token: str
-                - action: "increase_short" or "decrease_short"
-                - amount: float
-                
-        Returns:
-            List of results with success status
-        """
-        results = []
-        
-        for adj in adjustments:
-            token = adj["token"]
-            action = adj["action"]
-            amount = adj["amount"]
-            
-            if action == "increase_short":
-                result = self.increase_short(token, amount)
-            elif action == "decrease_short":
-                result = self.decrease_short(token, amount)
-            else:
-                result = OrderResult(
-                    success=False,
-                    message=f"Unknown action: {action}"
-                )
-            
-            results.append({
-                "token": token,
-                "action": action,
-                "amount": amount,
-                "success": result.success,
-                "message": result.message,
-                "order_id": result.order_id,
-                "filled_size": result.filled_size,
-                "avg_price": result.avg_price
-            })
-        
-        return results
+        return self.place_market_order(symbol, amount, is_buy=True, reduce_only=True)
