@@ -139,165 +139,164 @@ with tab2:
     
     if not config:
         st.warning("⚠️ Configure a API Key e Wallet na aba **Configuração** primeiro")
-    elif config:
-    
-    # Get config values
-    api_key = config["api_key"]
-    wallet_address = config["wallet_address"]
-    tolerance_pct = config["tolerance_pct"]
-    
-    # Last sync info
-    last_sync = config_mgr.get_last_sync()
-    if last_sync:
-        st.markdown(f'<div class="last-sync">Última sincronização: {last_sync[:19]}</div>', unsafe_allow_html=True)
     else:
-        st.markdown('<div class="last-sync">Nenhuma sincronização realizada</div>', unsafe_allow_html=True)
+        # Get config values
+        api_key = config["api_key"]
+        wallet_address = config["wallet_address"]
+        tolerance_pct = config["tolerance_pct"]
     
-    # Sync button
-    col1, col2, col3 = st.columns([1, 1, 2])
-    with col1:
-        sync_now = st.button("🔄 Sincronizar Agora", use_container_width=True, type="primary")
+        # Last sync info
+        last_sync = config_mgr.get_last_sync()
+        if last_sync:
+            st.markdown(f'<div class="last-sync">Última sincronização: {last_sync[:19]}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="last-sync">Nenhuma sincronização realizada</div>', unsafe_allow_html=True)
     
-    st.markdown("---")
+        # Sync button
+        col1, col2, col3 = st.columns([1, 1, 2])
+        with col1:
+            sync_now = st.button("🔄 Sincronizar Agora", use_container_width=True, type="primary")
     
-    # Load data function
-    def load_portfolio_data():
-        """Load portfolio data from Octav.fi"""
-        client = OctavClient(api_key)
-        portfolio = client.get_portfolio(wallet_address)
+        st.markdown("---")
+    
+        # Load data function
+        def load_portfolio_data():
+            """Load portfolio data from Octav.fi"""
+            client = OctavClient(api_key)
+            portfolio = client.get_portfolio(wallet_address)
         
-        if not portfolio:
-            return None
+            if not portfolio:
+                return None
         
-        lp_positions = client.extract_lp_positions(portfolio)
-        perp_positions = client.extract_perp_positions(portfolio)
+            lp_positions = client.extract_lp_positions(portfolio)
+            perp_positions = client.extract_perp_positions(portfolio)
         
-        # Aggregate balances
-        lp_balances = {}
-        for pos in lp_positions:
-            symbol = client.normalize_symbol(pos.token_symbol)
-            lp_balances[symbol] = lp_balances.get(symbol, 0) + pos.balance
+            # Aggregate balances
+            lp_balances = {}
+            for pos in lp_positions:
+                symbol = client.normalize_symbol(pos.token_symbol)
+                lp_balances[symbol] = lp_balances.get(symbol, 0) + pos.balance
         
-        short_balances = {}
-        for pos in perp_positions:
-            if pos.size < 0:
-                symbol = client.normalize_symbol(pos.symbol)
-                short_balances[symbol] = short_balances.get(symbol, 0) + abs(pos.size)
+            short_balances = {}
+            for pos in perp_positions:
+                if pos.size < 0:
+                    symbol = client.normalize_symbol(pos.symbol)
+                    short_balances[symbol] = short_balances.get(symbol, 0) + abs(pos.size)
         
-        return {
-            'portfolio': portfolio,
-            'lp_positions': lp_positions,
-            'perp_positions': perp_positions,
-            'lp_balances': lp_balances,
-            'short_balances': short_balances
-        }
-    
-    # Initialize session state for data
-    if 'portfolio_data' not in st.session_state or sync_now:
-        with st.spinner("🔄 Sincronizando dados do Octav.fi..."):
-            try:
-                data = load_portfolio_data()
-                if data:
-                    st.session_state.portfolio_data = data
-                    st.session_state.last_sync_time = datetime.now().isoformat()
-                    st.success("✅ Dados sincronizados com sucesso!")
-                else:
-                    st.error("❌ Erro ao carregar dados")
-                    pass
-            except Exception as e:
-                st.error(f"❌ Erro: {str(e)}")
-                pass
-    
-    # Check if data exists
-    if 'portfolio_data' not in st.session_state:
-        st.info("ℹ️ Clique em **Sincronizar Agora** para carregar os dados")
-        pass
-    
-    data = st.session_state.portfolio_data
-    
-    # Display net worth
-    portfolio = data['portfolio']
-    networth = portfolio.get("networth", "0")
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("💰 Net Worth", f"${float(networth):.2f}")
-    with col2:
-        st.metric("🏦 Posições LP", len(data['lp_positions']))
-    with col3:
-        st.metric("📉 Posições Short", len([p for p in data['perp_positions'] if p.size < 0]))
-    
-    st.markdown("---")
-    
-    # Perform analysis
-    lp_balances = data['lp_balances']
-    short_balances = data['short_balances']
-    
-    analyzer = DeltaNeutralAnalyzer(tolerance_pct=tolerance_pct)
-    suggestions = analyzer.compare_positions(lp_balances, short_balances)
-    
-    if not suggestions:
-        st.info("ℹ️ Nenhuma posição encontrada para comparar")
-    else:
-        # Summary metrics
-        balanced = [s for s in suggestions if s.status == "balanced"]
-        under_hedged = [s for s in suggestions if s.status == "under_hedged"]
-        over_hedged = [s for s in suggestions if s.status == "over_hedged"]
-        
-        # Save to history
-        if sync_now:
-            summary = {
-                "networth": float(networth),
-                "balanced": len(balanced),
-                "under_hedged": len(under_hedged),
-                "over_hedged": len(over_hedged),
-                "total_positions": len(suggestions)
+            return {
+                'portfolio': portfolio,
+                'lp_positions': lp_positions,
+                'perp_positions': perp_positions,
+                'lp_balances': lp_balances,
+                'short_balances': short_balances
             }
-            config_mgr.add_sync_history(summary)
-        
+    
+        # Initialize session state for data
+        if 'portfolio_data' not in st.session_state or sync_now:
+            with st.spinner("🔄 Sincronizando dados do Octav.fi..."):
+                try:
+                    data = load_portfolio_data()
+                    if data:
+                        st.session_state.portfolio_data = data
+                        st.session_state.last_sync_time = datetime.now().isoformat()
+                        st.success("✅ Dados sincronizados com sucesso!")
+                    else:
+                        st.error("❌ Erro ao carregar dados")
+                        pass
+                except Exception as e:
+                    st.error(f"❌ Erro: {str(e)}")
+                    pass
+    
+        # Check if data exists
+        if 'portfolio_data' not in st.session_state:
+            st.info("ℹ️ Clique em **Sincronizar Agora** para carregar os dados")
+            pass
+    
+        data = st.session_state.portfolio_data
+    
+        # Display net worth
+        portfolio = data['portfolio']
+        networth = portfolio.get("networth", "0")
+    
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("✅ Balanceadas", len(balanced))
+            st.metric("💰 Net Worth", f"${float(networth):.2f}")
         with col2:
-            st.metric("⚠️ Sub-Hedge", len(under_hedged))
+            st.metric("🏦 Posições LP", len(data['lp_positions']))
         with col3:
-            st.metric("⚠️ Sobre-Hedge", len(over_hedged))
-        
+            st.metric("📉 Posições Short", len([p for p in data['perp_positions'] if p.size < 0]))
+    
         st.markdown("---")
+    
+        # Perform analysis
+        lp_balances = data['lp_balances']
+        short_balances = data['short_balances']
+    
+        analyzer = DeltaNeutralAnalyzer(tolerance_pct=tolerance_pct)
+        suggestions = analyzer.compare_positions(lp_balances, short_balances)
+    
+        if not suggestions:
+            st.info("ℹ️ Nenhuma posição encontrada para comparar")
+        else:
+            # Summary metrics
+            balanced = [s for s in suggestions if s.status == "balanced"]
+            under_hedged = [s for s in suggestions if s.status == "under_hedged"]
+            over_hedged = [s for s in suggestions if s.status == "over_hedged"]
         
-        # Detailed analysis
-        for s in suggestions:
-            status_emoji = "✅" if s.status == "balanced" else "⚠️"
-            with st.expander(f"{status_emoji} **{s.token}** - {s.status.upper().replace('_', ' ')}", expanded=(s.status != "balanced")):
-                col1, col2, col3 = st.columns(3)
-                col1.metric("LP Balance", f"{s.lp_balance:.6f}")
-                col2.metric("Short Balance", f"{s.short_balance:.6f}")
-                col3.metric("Diferença", f"{s.difference:+.6f} ({s.difference_pct:.2f}%)")
-                
-                if s.action != "none":
-                    action_text = "AUMENTAR" if s.action == "increase_short" else "DIMINUIR"
-                    st.warning(f"➡️ **AÇÃO:** {action_text} SHORT em {s.adjustment_amount:.6f} {s.token}")
-                else:
-                    st.success("✅ Posição balanceada - nenhuma ação necessária")
+            # Save to history
+            if sync_now:
+                summary = {
+                    "networth": float(networth),
+                    "balanced": len(balanced),
+                    "under_hedged": len(under_hedged),
+                    "over_hedged": len(over_hedged),
+                    "total_positions": len(suggestions)
+                }
+                config_mgr.add_sync_history(summary)
         
-        # Action summary
-        if under_hedged or over_hedged:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("✅ Balanceadas", len(balanced))
+            with col2:
+                st.metric("⚠️ Sub-Hedge", len(under_hedged))
+            with col3:
+                st.metric("⚠️ Sobre-Hedge", len(over_hedged))
+        
             st.markdown("---")
-            st.subheader("📋 Resumo de Ações Necessárias")
+        
+            # Detailed analysis
+            for s in suggestions:
+                status_emoji = "✅" if s.status == "balanced" else "⚠️"
+                with st.expander(f"{status_emoji} **{s.token}** - {s.status.upper().replace('_', ' ')}", expanded=(s.status != "balanced")):
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("LP Balance", f"{s.lp_balance:.6f}")
+                    col2.metric("Short Balance", f"{s.short_balance:.6f}")
+                    col3.metric("Diferença", f"{s.difference:+.6f} ({s.difference_pct:.2f}%)")
+                
+                    if s.action != "none":
+                        action_text = "AUMENTAR" if s.action == "increase_short" else "DIMINUIR"
+                        st.warning(f"➡️ **AÇÃO:** {action_text} SHORT em {s.adjustment_amount:.6f} {s.token}")
+                    else:
+                        st.success("✅ Posição balanceada - nenhuma ação necessária")
+        
+            # Action summary
+            if under_hedged or over_hedged:
+                st.markdown("---")
+                st.subheader("📋 Resumo de Ações Necessárias")
             
-            if under_hedged:
-                st.markdown("**🔺 AUMENTAR SHORT:**")
-                for s in under_hedged:
-                    st.write(f"- {s.token}: +{s.adjustment_amount:.6f}")
+                if under_hedged:
+                    st.markdown("**🔺 AUMENTAR SHORT:**")
+                    for s in under_hedged:
+                        st.write(f"- {s.token}: +{s.adjustment_amount:.6f}")
             
-            if over_hedged:
-                st.markdown("**🔻 DIMINUIR SHORT:**")
-                for s in over_hedged:
-                    st.write(f"- {s.token}: -{s.adjustment_amount:.6f}")
+                if over_hedged:
+                    st.markdown("**🔻 DIMINUIR SHORT:**")
+                    for s in over_hedged:
+                        st.write(f"- {s.token}: -{s.adjustment_amount:.6f}")
 
 # ==================== TAB 3: POSIÇÕES LP ====================
-with tab3:
-    st.subheader("🏦 Posições LP (Liquidity Provider)")
+    with tab3:
+        st.subheader("🏦 Posições LP (Liquidity Provider)")
     
     if 'portfolio_data' not in st.session_state:
         st.info("ℹ️ Sincronize os dados na aba **Dashboard** primeiro")
