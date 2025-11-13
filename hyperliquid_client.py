@@ -196,3 +196,40 @@ class HyperliquidClient:
             OrderResult
         """
         return self.place_market_order(symbol, amount, is_buy=True, reduce_only=True)
+    
+    def execute_adjustments(self, adjustments: list) -> list:
+        """
+        Execute multiple adjustments
+        
+        Args:
+            adjustments: List of dicts with 'token', 'action', 'amount'
+                        action can be 'increase_short' or 'decrease_short'
+        
+        Returns:
+            List of OrderResult objects
+        """
+        results = []
+        
+        for adj in adjustments:
+            token = adj['token']
+            action = adj['action']
+            amount = adj['amount']
+            
+            if action == 'increase_short':
+                result = self.increase_short(token, amount)
+            elif action == 'decrease_short':
+                result = self.decrease_short(token, amount)
+            else:
+                result = OrderResult(
+                    success=False,
+                    message=f"Unknown action: {action}"
+                )
+            
+            results.append({
+                'token': token,
+                'action': action,
+                'amount': amount,
+                'result': result
+            })
+        
+        return results
