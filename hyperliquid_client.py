@@ -43,7 +43,11 @@ class HyperliquidClient:
         if self.can_execute:
             try:
                 from hyperliquid.exchange import Exchange
-                self.exchange = Exchange(wallet_address, private_key)
+                from hyperliquid.utils import signing
+                
+                # Create LocalAccount from private key
+                wallet = signing.get_account_from_secret(private_key)
+                self.exchange = Exchange(wallet)
             except ImportError:
                 self.can_execute = False
                 self.exchange = None
