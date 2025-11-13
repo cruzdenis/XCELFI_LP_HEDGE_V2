@@ -385,18 +385,33 @@ with tab2:
                                     st.markdown("### 📋 Resultados da Execução")
                                     
                                     success_count = sum(1 for r in results if r['result'].success)
+                                    skipped_count = sum(1 for r in results if not r['result'].success and 'below minimum' in r['result'].message)
+                                    failed_count = sum(1 for r in results if not r['result'].success and 'below minimum' not in r['result'].message)
                                     total_count = len(results)
                                     
                                     if success_count == total_count:
                                         st.success(f"✅ Todas as {total_count} operações foram executadas com sucesso!")
+                                    elif skipped_count > 0:
+                                        st.warning(f"⚠️ {success_count}/{total_count} operações executadas com sucesso")
+                                        st.info(f"ℹ️ {skipped_count} operações ignoradas (valor < $10 USD)")
                                     else:
                                         st.warning(f"⚠️ {success_count}/{total_count} operações executadas com sucesso")
                                     
                                     for r in results:
                                         result = r['result']
-                                        status_emoji = "✅" if result.success else "❌"
+                                        order_value = r.get('order_value_usd', 0)
+                                        
+                                        # Determine status emoji
+                                        if result.success:
+                                            status_emoji = "✅"
+                                        elif 'below minimum' in result.message:
+                                            status_emoji = "⏸️"  # Skipped
+                                        else:
+                                            status_emoji = "❌"  # Failed
+                                        
                                         with st.expander(f"{status_emoji} {r['token']} - {r['action']}"):
                                             st.write(f"**Amount:** {r['amount']:.6f}")
+                                            st.write(f"**Order Value:** ${order_value:.2f} USD")
                                             st.write(f"**Status:** {result.message}")
                                             if result.order_id:
                                                 st.write(f"**Order ID:** {result.order_id}")

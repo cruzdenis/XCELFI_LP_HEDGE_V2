@@ -260,23 +260,49 @@ class HyperliquidClient:
         """
         return self.place_market_order(symbol, amount, is_buy=True, reduce_only=True)
     
-    def execute_adjustments(self, adjustments: list) -> list:
+    def execute_adjustments(self, adjustments: list, min_order_value_usd: float = 10.0) -> list:
         """
         Execute multiple adjustments
         
         Args:
             adjustments: List of dicts with 'token', 'action', 'amount'
                         action can be 'increase_short' or 'decrease_short'
+            min_order_value_usd: Minimum order value in USD (default: $10 per Hyperliquid requirement)
         
         Returns:
             List of OrderResult objects
         """
         results = []
         
+        # Get current prices for value calculation
+        try:
+            all_mids = self.exchange.info.all_mids()
+        except:
+            all_mids = {}
+        
         for adj in adjustments:
             token = adj['token']
             action = adj['action']
             amount = adj['amount']
+            
+            # Calculate order value in USD
+            price = float(all_mids.get(token, 0))
+            order_value_usd = amount * price
+            
+            # Check minimum order value
+            if order_value_usd < min_order_value_usd:
+                result = OrderResult(
+                    success=False,
+                    message=f"Order value ${order_value_usd:.2f} is below minimum ${min_order_value_usd:.2f} - skipped"
+                )
+                results.append({
+                    'token': token,
+                    'action': action,
+                    'amount': amount,
+                    'order_value_usd': order_value_usd,
+                    'result': result
+                })
+                continue
             
             if action == 'increase_short':
                 result = self.increase_short(token, amount)
@@ -292,6 +318,7 @@ class HyperliquidClient:
                 'token': token,
                 'action': action,
                 'amount': amount,
+                'order_value_usd': order_value_usd,
                 'result': result
             })
         
