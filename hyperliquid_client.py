@@ -103,9 +103,6 @@ class HyperliquidClient:
         symbol = symbol.upper().replace("WBTC", "BTC").replace("WETH", "ETH")
         
         try:
-            # Get current price for slippage calculation
-            from hyperliquid.utils.types import OrderType
-            
             # Use market order with IOC (Immediate or Cancel)
             order_type = {"limit": {"tif": "Ioc"}}
             
