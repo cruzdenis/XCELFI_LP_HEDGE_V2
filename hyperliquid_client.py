@@ -32,22 +32,69 @@ class HyperliquidClient:
         """
         self.wallet_address = wallet_address
         self.can_execute = private_key is not None
+        self.asset_meta = {}  # Cache for asset metadata
         
         # Only import SDK if private key is provided
         if self.can_execute:
             try:
                 from hyperliquid.exchange import Exchange
+                from hyperliquid.info import Info
                 from eth_account import Account
                 
                 # Create LocalAccount from private key
                 wallet = Account.from_key(private_key)
                 self.exchange = Exchange(wallet)
+                self.info = Info()  # For fetching metadata
+                self._load_asset_metadata()
             except ImportError:
                 self.can_execute = False
                 self.exchange = None
+                self.info = None
                 print("Warning: hyperliquid-python-sdk not installed. Execution disabled.")
         else:
             self.exchange = None
+            self.info = None
+    
+    def _load_asset_metadata(self):
+        """Load asset metadata (szDecimals) from Hyperliquid API"""
+        try:
+            meta = self.info.meta()
+            if meta and 'universe' in meta:
+                for asset_info in meta['universe']:
+                    name = asset_info.get('name')
+                    sz_decimals = asset_info.get('szDecimals', 3)  # Default to 3
+                    if name:
+                        self.asset_meta[name] = {
+                            'szDecimals': sz_decimals,
+                            'maxLeverage': asset_info.get('maxLeverage', 1)
+                        }
+        except Exception as e:
+            print(f"Warning: Could not load asset metadata: {e}")
+            # Set defaults for common assets
+            self.asset_meta = {
+                'BTC': {'szDecimals': 4, 'maxLeverage': 50},
+                'ETH': {'szDecimals': 3, 'maxLeverage': 50}
+            }
+    
+    def _round_size(self, symbol: str, size: float) -> float:
+        """Round size to asset's szDecimals precision"""
+        sz_decimals = self.asset_meta.get(symbol, {}).get('szDecimals', 3)
+        return round(size, sz_decimals)
+    
+    def _round_price(self, symbol: str, price: float) -> float:
+        """Round price according to Hyperliquid rules:
+        - Max 5 significant figures
+        - Max (6 - szDecimals) decimal places for perps
+        """
+        sz_decimals = self.asset_meta.get(symbol, {}).get('szDecimals', 3)
+        max_decimals = 6  # For perps
+        
+        # Round to max decimal places allowed
+        max_price_decimals = max_decimals - sz_decimals
+        rounded = round(price, max_price_decimals)
+        
+        # Format to remove trailing zeros
+        return float(f"{rounded:.{max_price_decimals}f}".rstrip('0').rstrip('.'))
     
     def get_account_value(self) -> Optional[float]:
         """
@@ -121,17 +168,16 @@ class HyperliquidClient:
             slippage = 0.05
             limit_px = mid_price * (1 + slippage) if is_buy else mid_price * (1 - slippage)
             
-            # Round size to appropriate precision
-            # BTC/ETH typically use 4 decimal places for size
-            # Round to 5 significant figures to avoid rounding errors
-            rounded_size = round(abs(size), 5)
+            # Round size and price according to Hyperliquid rules
+            rounded_size = self._round_size(symbol, abs(size))
+            rounded_price = self._round_price(symbol, limit_px)
             
             # Place order using correct SDK method signature
             result = self.exchange.order(
                 name=symbol,
                 is_buy=is_buy,
                 sz=rounded_size,
-                limit_px=limit_px,
+                limit_px=rounded_price,
                 order_type=order_type,
                 reduce_only=reduce_only
             )
