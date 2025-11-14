@@ -5,7 +5,9 @@ Delta-Neutral Analysis using Octav.fi API
 
 import streamlit as st
 import os
-from datetime import datetime
+import threading
+import time
+from datetime import datetime, timedelta
 from octav_client import OctavClient
 from delta_neutral_analyzer import DeltaNeutralAnalyzer
 from config_manager import ConfigManager
@@ -39,6 +41,94 @@ st.markdown("""
 
 # Initialize config manager
 config_mgr = ConfigManager()
+
+# Background sync thread
+def background_sync_worker():
+    """Background thread that syncs data periodically"""
+    while True:
+        try:
+            config = config_mgr.load_config()
+            
+            if not config:
+                time.sleep(60)  # Wait 1 minute if no config
+                continue
+            
+            auto_sync_enabled = config.get("auto_sync_enabled", False)
+            
+            if not auto_sync_enabled:
+                time.sleep(60)  # Wait 1 minute if disabled
+                continue
+            
+            # Check if sync is needed
+            auto_sync_interval_hours = config.get("auto_sync_interval_hours", 1)
+            last_sync = config_mgr.get_last_sync()
+            
+            should_sync = False
+            if last_sync:
+                last_sync_dt = datetime.fromisoformat(last_sync)
+                now = datetime.now()
+                time_since_sync = (now - last_sync_dt).total_seconds() / 3600
+                should_sync = time_since_sync >= auto_sync_interval_hours
+            else:
+                should_sync = True  # First sync
+            
+            if should_sync:
+                # Perform sync
+                api_key = config.get("api_key")
+                wallet_address = config.get("wallet_address")
+                tolerance_pct = config.get("tolerance_pct", 5.0)
+                
+                if api_key and wallet_address:
+                    client = OctavClient(api_key)
+                    portfolio = client.get_portfolio(wallet_address)
+                    
+                    if portfolio:
+                        lp_positions = client.extract_lp_positions(portfolio)
+                        perp_positions = client.extract_perp_positions(portfolio)
+                        
+                        lp_balances = {}
+                        for pos in lp_positions:
+                            symbol = client.normalize_symbol(pos.token_symbol)
+                            lp_balances[symbol] = lp_balances.get(symbol, 0) + pos.balance
+                        
+                        short_balances = {}
+                        for pos in perp_positions:
+                            if pos.size < 0:
+                                symbol = client.normalize_symbol(pos.symbol)
+                                short_balances[symbol] = short_balances.get(symbol, 0) + abs(pos.size)
+                        
+                        analyzer = DeltaNeutralAnalyzer(tolerance_pct=tolerance_pct)
+                        suggestions = analyzer.compare_positions(lp_balances, short_balances)
+                        
+                        balanced = [s for s in suggestions if s.status == "balanced"]
+                        under_hedged = [s for s in suggestions if s.status == "under_hedged"]
+                        over_hedged = [s for s in suggestions if s.status == "over_hedged"]
+                        
+                        networth = float(portfolio.get("networth", "0"))
+                        
+                        summary = {
+                            "networth": networth,
+                            "balanced": len(balanced),
+                            "under_hedged": len(under_hedged),
+                            "over_hedged": len(over_hedged),
+                            "total_positions": len(suggestions)
+                        }
+                        
+                        config_mgr.add_sync_history(summary)
+                        print(f"[BACKGROUND SYNC] Completed at {datetime.now().isoformat()}")
+            
+            # Sleep for 5 minutes before checking again
+            time.sleep(300)
+            
+        except Exception as e:
+            print(f"[BACKGROUND SYNC ERROR] {str(e)}")
+            time.sleep(300)  # Wait 5 minutes on error
+
+# Start background sync thread (only once)
+if 'background_sync_started' not in st.session_state:
+    sync_thread = threading.Thread(target=background_sync_worker, daemon=True)
+    sync_thread.start()
+    st.session_state.background_sync_started = True
 
 # Header
 st.markdown('<div class="main-header">🎯 XCELFI LP Hedge V3</div>', unsafe_allow_html=True)
