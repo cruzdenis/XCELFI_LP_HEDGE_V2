@@ -1,0 +1,27 @@
+# Railway Cron Job Configuration
+# This file defines scheduled jobs that run automatically
+
+jobs:
+  - name: sync-portfolio-1h
+    schedule: "0 * * * *"  # Every hour at minute 0
+    command: python3 sync_job.py
+    enabled: true
+    description: "Sync portfolio data every 1 hour"
+  
+  - name: sync-portfolio-6h
+    schedule: "0 */6 * * *"  # Every 6 hours at minute 0
+    command: python3 sync_job.py
+    enabled: false
+    description: "Sync portfolio data every 6 hours"
+  
+  - name: sync-portfolio-12h
+    schedule: "0 */12 * * *"  # Every 12 hours at minute 0
+    command: python3 sync_job.py
+    enabled: false
+    description: "Sync portfolio data every 12 hours"
+  
+  - name: sync-portfolio-24h
+    schedule: "0 0 * * *"  # Every day at midnight
+    command: python3 sync_job.py
+    enabled: false
+    description: "Sync portfolio data every 24 hours"
