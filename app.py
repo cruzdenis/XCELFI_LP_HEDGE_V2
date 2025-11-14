@@ -105,6 +105,28 @@ with tab1:
             key="config_tolerance"
         )
         
+        st.markdown("### 🔄 Sincronização Automática")
+        
+        auto_sync_enabled = st.checkbox(
+            "Ativar sincronização automática",
+            value=existing_config.get("auto_sync_enabled", False) if existing_config else False,
+            help="Sincroniza dados automaticamente em intervalos regulares",
+            key="config_auto_sync_enabled"
+        )
+        
+        auto_sync_interval = st.selectbox(
+            "Intervalo de sincronização",
+            options=[1, 2, 4, 6, 12, 24],
+            index=[1, 2, 4, 6, 12, 24].index(existing_config.get("auto_sync_interval_hours", 1) if existing_config else 1),
+            format_func=lambda x: f"{x} hora{'s' if x > 1 else ''}",
+            help="Frequência de sincronização automática",
+            disabled=not auto_sync_enabled,
+            key="config_auto_sync_interval"
+        )
+        
+        if auto_sync_enabled:
+            st.info(f"🔄 Sincronização automática a cada {auto_sync_interval}h")
+        
         st.markdown("### 📊 Status")
         if existing_config:
             st.success("✅ Configuração salva")
@@ -122,7 +144,14 @@ with tab1:
     with col1:
         if st.button("💾 Salvar Configuração", use_container_width=True, type="primary"):
             if api_key and wallet:
-                config_mgr.save_config(api_key, wallet, tolerance, hyperliquid_key)
+                config_mgr.save_config(
+                    api_key, 
+                    wallet, 
+                    tolerance, 
+                    hyperliquid_key,
+                    auto_sync_enabled,
+                    auto_sync_interval
+                )
                 st.success("✅ Configuração salva com sucesso! Vá para a aba Dashboard.")
                 st.balloons()
                 
@@ -175,17 +204,46 @@ with tab2:
         wallet_address = config["wallet_address"]
         tolerance_pct = config["tolerance_pct"]
     
-        # Last sync info
-        last_sync = config_mgr.get_last_sync()
-        if last_sync:
-            st.markdown(f'<div class="last-sync">Última sincronização: {last_sync[:19]}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="last-sync">Nenhuma sincronização realizada</div>', unsafe_allow_html=True)
+        # Auto-sync logic
+        auto_sync_enabled = config.get("auto_sync_enabled", False)
+        auto_sync_interval_hours = config.get("auto_sync_interval_hours", 1)
+        
+        # Check if auto-sync should trigger
+        should_auto_sync = False
+        if auto_sync_enabled:
+            last_sync = config_mgr.get_last_sync()
+            if last_sync:
+                from datetime import datetime, timedelta
+                last_sync_dt = datetime.fromisoformat(last_sync)
+                now = datetime.now()
+                time_since_sync = (now - last_sync_dt).total_seconds() / 3600  # hours
+                should_auto_sync = time_since_sync >= auto_sync_interval_hours
+            else:
+                should_auto_sync = True  # First sync
+        
+        # Last sync info with auto-sync status
+        col_sync1, col_sync2 = st.columns([3, 1])
+        with col_sync1:
+            last_sync = config_mgr.get_last_sync()
+            if last_sync:
+                st.markdown(f'<div class="last-sync">Última sincronização: {last_sync[:19]}</div>', unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="last-sync">Nenhuma sincronização realizada</div>', unsafe_allow_html=True)
+        
+        with col_sync2:
+            if auto_sync_enabled:
+                st.markdown(f'<div class="last-sync">🔄 Auto-sync: {auto_sync_interval_hours}h</div>', unsafe_allow_html=True)
     
         # Sync button
         col1, col2, col3 = st.columns([1, 1, 2])
         with col1:
             sync_now = st.button("🔄 Sincronizar Agora", use_container_width=True, type="primary")
+        
+        # Trigger auto-sync if needed
+        if should_auto_sync and not sync_now:
+            sync_now = True
+            st.info(f"🔄 Sincronização automática ativada ({auto_sync_interval_hours}h)")
+            st.rerun()
     
         st.markdown("---")
     
@@ -252,10 +310,101 @@ with tab2:
         with col1:
             st.metric("💰 Net Worth", f"${float(networth):.2f}")
         with col2:
-            st.metric("🏦 Posições LP", len(data['lp_positions']))
+            st.metric("🏬 Posições LP", len(data['lp_positions']))
         with col3:
             st.metric("📉 Posições Short", len([p for p in data['perp_positions'] if p.size < 0]))
     
+        st.markdown("---")
+        
+        # NAV Evolution Chart
+        st.subheader("📈 Evolução do Net Worth")
+        
+        history = config_mgr.load_history()
+        
+        if len(history) > 1:
+            import plotly.graph_objects as go
+            from datetime import datetime, timedelta
+            
+            # Period filter
+            col_filter1, col_filter2 = st.columns([3, 1])
+            with col_filter2:
+                period_filter = st.selectbox(
+                    "Período",
+                    options=["1d", "7d", "30d", "90d", "365d", "total"],
+                    format_func=lambda x: {
+                        "1d": "1 dia",
+                        "7d": "7 dias",
+                        "30d": "30 dias",
+                        "90d": "90 dias",
+                        "365d": "365 dias",
+                        "total": "Total"
+                    }[x],
+                    index=2,  # Default to 30 days
+                    key="nav_period_filter"
+                )
+            
+            # Filter history by period
+            now = datetime.now()
+            if period_filter != "total":
+                days = int(period_filter[:-1])
+                cutoff_date = now - timedelta(days=days)
+                filtered_history = [
+                    h for h in history 
+                    if datetime.fromisoformat(h["timestamp"]) >= cutoff_date
+                ]
+            else:
+                filtered_history = history
+            
+            if len(filtered_history) > 0:
+                # Extract data
+                timestamps = [datetime.fromisoformat(h["timestamp"]) for h in filtered_history]
+                networth_values = [h["summary"].get("networth", 0) for h in filtered_history]
+                
+                # Reverse to show oldest first
+                timestamps.reverse()
+                networth_values.reverse()
+                
+                # Create chart
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=timestamps,
+                    y=networth_values,
+                    mode='lines+markers',
+                    name='Net Worth',
+                    line=dict(color='#1f77b4', width=2),
+                    marker=dict(size=6)
+                ))
+                
+                fig.update_layout(
+                    title=None,
+                    xaxis_title="Data",
+                    yaxis_title="Net Worth (USD)",
+                    hovermode='x unified',
+                    height=400,
+                    margin=dict(l=0, r=0, t=20, b=0)
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Stats
+                if len(networth_values) > 1:
+                    first_value = networth_values[0]
+                    last_value = networth_values[-1]
+                    change = last_value - first_value
+                    change_pct = (change / first_value * 100) if first_value > 0 else 0
+                    
+                    col_stat1, col_stat2, col_stat3 = st.columns(3)
+                    with col_stat1:
+                        st.metric("Início do Período", f"${first_value:,.2f}")
+                    with col_stat2:
+                        st.metric("Fim do Período", f"${last_value:,.2f}")
+                    with col_stat3:
+                        st.metric("Variação", f"${change:+,.2f}", f"{change_pct:+.2f}%")
+            else:
+                st.info(f"ℹ️ Nenhum dado disponível para o período selecionado")
+        else:
+            st.info("ℹ️ Sincronize mais vezes para visualizar o gráfico de evolução")
+        
         st.markdown("---")
     
         # Perform analysis
