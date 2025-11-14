@@ -294,14 +294,43 @@ with tab2:
         
             st.markdown("---")
         
+            # Fetch current prices for USD conversion
+            token_prices = {}
+            try:
+                if config_mgr.config.get('hyperliquid_private_key'):
+                    from hyperliquid_client import HyperliquidClient
+                    hl_client = HyperliquidClient(
+                        wallet_address=config_mgr.config.get('wallet_address'),
+                        private_key=config_mgr.config.get('hyperliquid_private_key')
+                    )
+                    all_mids = hl_client.exchange.info.all_mids()
+                    for token in [s.token for s in suggestions]:
+                        if token in all_mids:
+                            token_prices[token] = float(all_mids[token])
+            except:
+                pass
+            
             # Detailed analysis
             for s in suggestions:
                 status_emoji = "✅" if s.status == "balanced" else "⚠️"
                 with st.expander(f"{status_emoji} **{s.token}** - {s.status.upper().replace('_', ' ')}", expanded=(s.status != "balanced")):
                     col1, col2, col3 = st.columns(3)
-                    col1.metric("LP Balance", f"{s.lp_balance:.6f}")
-                    col2.metric("Short Balance", f"{s.short_balance:.6f}")
-                    col3.metric("Diferença", f"{s.difference:+.6f} ({s.difference_pct:.2f}%)")
+                    
+                    # Get price for USD conversion
+                    price = token_prices.get(s.token, 0)
+                    lp_usd = s.lp_balance * price
+                    short_usd = s.short_balance * price
+                    diff_usd = s.difference * price
+                    
+                    # Display with USD values
+                    if price > 0:
+                        col1.metric("LP Balance", f"{s.lp_balance:.6f}", f"${lp_usd:.2f}")
+                        col2.metric("Short Balance", f"{s.short_balance:.6f}", f"${short_usd:.2f}")
+                        col3.metric("Diferença", f"{s.difference:+.6f} ({s.difference_pct:.2f}%)", f"${diff_usd:+.2f}")
+                    else:
+                        col1.metric("LP Balance", f"{s.lp_balance:.6f}")
+                        col2.metric("Short Balance", f"{s.short_balance:.6f}")
+                        col3.metric("Diferença", f"{s.difference:+.6f} ({s.difference_pct:.2f}%)")
                 
                     if s.action != "none":
                         action_text = "AUMENTAR" if s.action == "increase_short" else "DIMINUIR"
