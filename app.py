@@ -130,6 +130,37 @@ if 'background_sync_started' not in st.session_state:
     sync_thread.start()
     st.session_state.background_sync_started = True
 
+# Keep-alive thread to prevent hibernation
+def keep_alive_worker():
+    """Keep the app alive by performing lightweight operations"""
+    import requests
+    while True:
+        try:
+            # Self-ping every 10 minutes
+            time.sleep(600)  # 10 minutes
+            
+            # Try to get Railway URL from environment
+            railway_url = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+            if railway_url:
+                try:
+                    requests.get(f"https://{railway_url}", timeout=5)
+                    print(f"[KEEP-ALIVE] Pinged at {datetime.now().isoformat()}")
+                except:
+                    pass
+            else:
+                # Just log to keep thread active
+                print(f"[KEEP-ALIVE] Active at {datetime.now().isoformat()}")
+                
+        except Exception as e:
+            print(f"[KEEP-ALIVE ERROR] {str(e)}")
+            time.sleep(600)
+
+# Start keep-alive thread (only once)
+if 'keep_alive_started' not in st.session_state:
+    keepalive_thread = threading.Thread(target=keep_alive_worker, daemon=True)
+    keepalive_thread.start()
+    st.session_state.keep_alive_started = True
+
 # Header
 st.markdown('<div class="main-header">🎯 XCELFI LP Hedge V3</div>', unsafe_allow_html=True)
 st.markdown('<div class="last-sync">Delta-Neutral LP Hedge Dashboard</div>', unsafe_allow_html=True)
