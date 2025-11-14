@@ -239,11 +239,10 @@ with tab2:
         with col1:
             sync_now = st.button("🔄 Sincronizar Agora", use_container_width=True, type="primary")
         
-        # Trigger auto-sync if needed
+        # Trigger auto-sync if needed (without rerun to avoid loop)
         if should_auto_sync and not sync_now:
             sync_now = True
-            st.info(f"🔄 Sincronização automática ativada ({auto_sync_interval_hours}h)")
-            st.rerun()
+            st.info(f"🔄 Sincronização automática em andamento... ({auto_sync_interval_hours}h)")
     
         st.markdown("---")
     
@@ -287,7 +286,10 @@ with tab2:
                     if data:
                         st.session_state.portfolio_data = data
                         st.session_state.last_sync_time = datetime.now().isoformat()
-                        st.success("✅ Dados sincronizados com sucesso!")
+                        if should_auto_sync:
+                            st.success("✅ Sincronização automática concluída!")
+                        else:
+                            st.success("✅ Dados sincronizados com sucesso!")
                     else:
                         st.error("❌ Erro ao carregar dados")
                         pass
