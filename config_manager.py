@@ -16,8 +16,9 @@ class ConfigManager:
         
         self.config_file = self.config_dir / "config.json"
         self.history_file = self.config_dir / "history.json"
+        self.execution_history_file = self.config_dir / "execution_history.json"
     
-    def save_config(self, api_key, wallet_address, tolerance_pct=5.0, hyperliquid_private_key="", auto_sync_enabled=False, auto_sync_interval_hours=1):
+    def save_config(self, api_key, wallet_address, tolerance_pct=5.0, hyperliquid_private_key="", auto_sync_enabled=False, auto_sync_interval_hours=1, auto_execute_enabled=False):
         """Save configuration to file"""
         config = {
             "api_key": api_key,
@@ -26,6 +27,7 @@ class ConfigManager:
             "hyperliquid_private_key": hyperliquid_private_key,
             "auto_sync_enabled": auto_sync_enabled,
             "auto_sync_interval_hours": auto_sync_interval_hours,
+            "auto_execute_enabled": auto_execute_enabled,
             "saved_at": datetime.now().isoformat()
         }
         
@@ -136,3 +138,40 @@ class ConfigManager:
             
         except Exception as e:
             return False, f"Error restoring backup: {str(e)}"
+    
+    def add_execution_history(self, execution_data):
+        """Add an execution entry to history"""
+        history = self.load_execution_history()
+        
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "execution": execution_data
+        }
+        
+        history.insert(0, entry)  # Add to beginning
+        
+        # Keep only last 200 entries
+        history = history[:200]
+        
+        with open(self.execution_history_file, 'w') as f:
+            json.dump(history, f, indent=2)
+        
+        return True
+    
+    def load_execution_history(self):
+        """Load execution history from file"""
+        if not self.execution_history_file.exists():
+            return []
+        
+        try:
+            with open(self.execution_history_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading execution history: {e}")
+            return []
+    
+    def clear_execution_history(self):
+        """Clear execution history"""
+        if self.execution_history_file.exists():
+            self.execution_history_file.unlink()
+        return True

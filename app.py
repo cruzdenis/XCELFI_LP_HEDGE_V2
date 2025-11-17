@@ -116,6 +116,66 @@ def background_sync_worker():
                         
                         config_mgr.add_sync_history(summary)
                         print(f"[BACKGROUND SYNC] Completed at {datetime.now().isoformat()}")
+                        
+                        # Auto-execute adjustments if enabled
+                        auto_execute_enabled = config.get("auto_execute_enabled", False)
+                        hyperliquid_private_key = config.get("hyperliquid_private_key")
+                        
+                        if auto_execute_enabled and hyperliquid_private_key and (under_hedged or over_hedged):
+                            print(f"[AUTO-EXECUTE] Starting automatic execution...")
+                            
+                            try:
+                                from hyperliquid_client import HyperliquidClient
+                                hl_client = HyperliquidClient(wallet_address, hyperliquid_private_key)
+                                
+                                # Prepare adjustments
+                                adjustments = []
+                                for s in under_hedged:
+                                    adjustments.append({
+                                        'token': s.token,
+                                        'action': 'increase_short',
+                                        'amount': s.adjustment_amount
+                                    })
+                                for s in over_hedged:
+                                    adjustments.append({
+                                        'token': s.token,
+                                        'action': 'decrease_short',
+                                        'amount': s.adjustment_amount
+                                    })
+                                
+                                # Execute adjustments
+                                results = hl_client.execute_adjustments(adjustments)
+                                
+                                # Log each execution
+                                for result in results:
+                                    execution_data = {
+                                        'token': result['token'],
+                                        'action': result['action'],
+                                        'amount': result['amount'],
+                                        'order_value_usd': result.get('order_value_usd', 0),
+                                        'success': result['result'].success,
+                                        'message': result['result'].message,
+                                        'order_id': result['result'].order_id,
+                                        'filled_size': result['result'].filled_size,
+                                        'avg_price': result['result'].avg_price,
+                                        'auto_executed': True
+                                    }
+                                    config_mgr.add_execution_history(execution_data)
+                                
+                                success_count = sum(1 for r in results if r['result'].success)
+                                print(f"[AUTO-EXECUTE] Completed: {success_count}/{len(results)} successful")
+                                
+                            except Exception as exec_error:
+                                print(f"[AUTO-EXECUTE ERROR] {str(exec_error)}")
+                                # Log failed execution
+                                config_mgr.add_execution_history({
+                                    'token': 'ALL',
+                                    'action': 'auto_execute',
+                                    'amount': 0,
+                                    'success': False,
+                                    'message': f"Auto-execution failed: {str(exec_error)}",
+                                    'auto_executed': True
+                                })
             
             # Sleep for 5 minutes before checking again
             time.sleep(300)
@@ -166,7 +226,7 @@ st.markdown('<div class="main-header">🎯 XCELFI LP Hedge V3</div>', unsafe_all
 st.markdown('<div class="last-sync">Delta-Neutral LP Hedge Dashboard</div>', unsafe_allow_html=True)
 
 # Main tabs
-tab1, tab2, tab3, tab4 = st.tabs(["⚙️ Configuração", "📊 Dashboard", "🏦 Posições LP", "📜 Histórico"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["⚙️ Configuração", "📊 Dashboard", "🏬 Posições LP", "📜 Histórico", "📈 Execuções"])
 
 # ==================== TAB 1: CONFIGURAÇÃO ====================
 with tab1:
@@ -248,6 +308,21 @@ with tab1:
         if auto_sync_enabled:
             st.info(f"🔄 Sincronização automática a cada {auto_sync_interval}h")
         
+        st.markdown("### ⚡ Execução Automática")
+        
+        auto_execute_enabled = st.checkbox(
+            "Ativar execução automática de ajustes",
+            value=existing_config.get("auto_execute_enabled", False) if existing_config else False,
+            help="Executa ajustes automaticamente após cada sincronização (requer Hyperliquid Private Key)",
+            disabled=not existing_config.get("hyperliquid_private_key") if existing_config else True,
+            key="config_auto_execute_enabled"
+        )
+        
+        if auto_execute_enabled:
+            st.warning("⚠️ Execução automática ATIVADA! Ordens serão executadas automaticamente.")
+        else:
+            st.info("🔒 Execução manual - você controla quando executar")
+        
         st.markdown("### 📊 Status")
         if existing_config:
             st.success("✅ Configuração salva")
@@ -271,7 +346,8 @@ with tab1:
                     tolerance, 
                     hyperliquid_key,
                     auto_sync_enabled,
-                    auto_sync_interval
+                    auto_sync_interval,
+                    auto_execute_enabled
                 )
                 st.success("✅ Configuração salva com sucesso! Vá para a aba Dashboard.")
                 st.balloons()
@@ -884,6 +960,112 @@ with tab4:
                 col2.metric("✅ Balanceadas", summary.get('balanced', 0))
                 col3.metric("⚠️ Sub-Hedge", summary.get('under_hedged', 0))
                 col4.metric("⚠️ Sobre-Hedge", summary.get('over_hedged', 0))
+
+# ==================== TAB 5: EXECUÇÕES ====================
+with tab5:
+    st.subheader("📈 Histórico de Execuções")
+    
+    execution_history = config_mgr.load_execution_history()
+    
+    if not execution_history:
+        st.info("ℹ️ Nenhuma execução registrada ainda")
+    else:
+        st.caption(f"Total de execuções: {len(execution_history)}")
+        
+        # Filters
+        col_filter1, col_filter2, col_filter3 = st.columns(3)
+        
+        with col_filter1:
+            filter_status = st.selectbox(
+                "Status",
+                options=["Todos", "Sucesso", "Falha", "Ignorado"],
+                key="exec_filter_status"
+            )
+        
+        with col_filter2:
+            all_tokens = list(set([e['execution'].get('token', 'N/A') for e in execution_history]))
+            filter_token = st.selectbox(
+                "Token",
+                options=["Todos"] + sorted(all_tokens),
+                key="exec_filter_token"
+            )
+        
+        with col_filter3:
+            filter_auto = st.selectbox(
+                "Tipo",
+                options=["Todos", "Automático", "Manual"],
+                key="exec_filter_auto"
+            )
+        
+        # Clear history button
+        col_clear1, col_clear2 = st.columns([1, 3])
+        with col_clear1:
+            if st.button("🗑️ Limpar Histórico"):
+                config_mgr.clear_execution_history()
+                st.success("✅ Histórico de execuções limpo")
+                st.rerun()
+        
+        st.markdown("---")
+        
+        # Filter executions
+        filtered_executions = execution_history
+        
+        if filter_status != "Todos":
+            if filter_status == "Sucesso":
+                filtered_executions = [e for e in filtered_executions if e['execution'].get('success', False)]
+            elif filter_status == "Falha":
+                filtered_executions = [e for e in filtered_executions if not e['execution'].get('success', False) and 'below minimum' not in e['execution'].get('message', '')]
+            elif filter_status == "Ignorado":
+                filtered_executions = [e for e in filtered_executions if 'below minimum' in e['execution'].get('message', '')]
+        
+        if filter_token != "Todos":
+            filtered_executions = [e for e in filtered_executions if e['execution'].get('token') == filter_token]
+        
+        if filter_auto != "Todos":
+            if filter_auto == "Automático":
+                filtered_executions = [e for e in filtered_executions if e['execution'].get('auto_executed', False)]
+            else:
+                filtered_executions = [e for e in filtered_executions if not e['execution'].get('auto_executed', False)]
+        
+        st.caption(f"Mostrando {len(filtered_executions)} de {len(execution_history)} execuções")
+        
+        # Display executions
+        for entry in filtered_executions:
+            timestamp = entry.get("timestamp", "")
+            execution = entry.get("execution", {})
+            
+            # Determine status emoji
+            if execution.get('success'):
+                status_emoji = "✅"
+                status_color = "green"
+            elif 'below minimum' in execution.get('message', ''):
+                status_emoji = "⏸️"
+                status_color = "blue"
+            else:
+                status_emoji = "❌"
+                status_color = "red"
+            
+            # Auto/Manual badge
+            exec_type = "🤖 AUTO" if execution.get('auto_executed', False) else "👤 MANUAL"
+            
+            with st.expander(f"{status_emoji} {exec_type} | {execution.get('token', 'N/A')} - {execution.get('action', 'N/A')} | {timestamp[:19]}", expanded=False):
+                col1, col2, col3, col4 = st.columns(4)
+                
+                col1.metric("Token", execution.get('token', 'N/A'))
+                col2.metric("Ação", execution.get('action', 'N/A').replace('_', ' ').title())
+                col3.metric("Amount", f"{execution.get('amount', 0):.6f}")
+                col4.metric("Valor USD", f"${execution.get('order_value_usd', 0):.2f}")
+                
+                st.markdown(f"**Status:** {execution.get('message', 'N/A')}")
+                
+                if execution.get('order_id'):
+                    st.markdown(f"**Order ID:** `{execution.get('order_id')}`")
+                
+                if execution.get('filled_size'):
+                    st.markdown(f"**Filled Size:** {execution.get('filled_size'):.6f}")
+                
+                if execution.get('avg_price'):
+                    st.markdown(f"**Avg Price:** ${execution.get('avg_price'):.2f}")
 
 # Footer
 st.markdown("---")
