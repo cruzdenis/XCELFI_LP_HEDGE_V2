@@ -949,7 +949,7 @@ with tab4:
         st.caption(f"Total de sincronizações: {len(history)}")
         
         # Clear history button
-        if st.button("🗑️ Limpar Histórico"):
+        if st.button("🗑️ Limpar Histórico", key="clear_sync_history"):
             config_mgr.clear_history()
             st.success("✅ Histórico limpo")
             st.rerun()
@@ -1016,7 +1016,7 @@ with tab5:
         # Clear history button
         col_clear1, col_clear2 = st.columns([1, 3])
         with col_clear1:
-            if st.button("🗑️ Limpar Histórico"):
+            if st.button("🗑️ Limpar Histórico", key="clear_execution_history"):
                 config_mgr.clear_execution_history()
                 st.success("✅ Histórico de execuções limpo")
                 st.rerun()
