@@ -218,8 +218,8 @@ with tab1:
         
         tolerance = st.slider(
             "Tolerância (%)",
-            min_value=1.0,
-            max_value=20.0,
+            min_value=0.0,
+            max_value=100.0,
             value=existing_config.get("tolerance_pct", 5.0) if existing_config else 5.0,
             step=0.5,
             help="Diferença percentual aceitável para considerar balanceado",
