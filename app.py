@@ -949,7 +949,7 @@ with tab4:
         st.markdown("---")
         
         # Display history
-        for entry in history:
+        for idx, entry in enumerate(history):
             timestamp = entry.get("timestamp", "")
             summary = entry.get("summary", {})
             
@@ -960,6 +960,14 @@ with tab4:
                 col2.metric("✅ Balanceadas", summary.get('balanced', 0))
                 col3.metric("⚠️ Sub-Hedge", summary.get('under_hedged', 0))
                 col4.metric("⚠️ Sobre-Hedge", summary.get('over_hedged', 0))
+                
+                # Delete button
+                if st.button("❌ Excluir esta entrada", key=f"del_sync_{idx}", use_container_width=True):
+                    if config_mgr.delete_sync_entry(idx):
+                        st.success("✅ Entrada excluída")
+                        st.rerun()
+                    else:
+                        st.error("❌ Erro ao excluir entrada")
 
 # ==================== TAB 5: EXECUÇÕES ====================
 with tab5:
@@ -1030,7 +1038,10 @@ with tab5:
         st.caption(f"Mostrando {len(filtered_executions)} de {len(execution_history)} execuções")
         
         # Display executions
-        for entry in filtered_executions:
+        # Need to track original indices for deletion
+        for filtered_idx, entry in enumerate(filtered_executions):
+            # Find original index in full history
+            original_idx = execution_history.index(entry)
             timestamp = entry.get("timestamp", "")
             execution = entry.get("execution", {})
             
@@ -1066,6 +1077,14 @@ with tab5:
                 
                 if execution.get('avg_price'):
                     st.markdown(f"**Avg Price:** ${execution.get('avg_price'):.2f}")
+                
+                # Delete button
+                if st.button("❌ Excluir esta entrada", key=f"del_exec_{original_idx}_{filtered_idx}", use_container_width=True):
+                    if config_mgr.delete_execution_entry(original_idx):
+                        st.success("✅ Entrada excluída")
+                        st.rerun()
+                    else:
+                        st.error("❌ Erro ao excluir entrada")
 
 # Footer
 st.markdown("---")

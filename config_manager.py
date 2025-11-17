@@ -175,3 +175,23 @@ class ConfigManager:
         if self.execution_history_file.exists():
             self.execution_history_file.unlink()
         return True
+    
+    def delete_sync_entry(self, index):
+        """Delete a specific sync history entry by index"""
+        history = self.load_history()
+        if 0 <= index < len(history):
+            history.pop(index)
+            with open(self.history_file, 'w') as f:
+                json.dump(history, f, indent=2)
+            return True
+        return False
+    
+    def delete_execution_entry(self, index):
+        """Delete a specific execution history entry by index"""
+        history = self.load_execution_history()
+        if 0 <= index < len(history):
+            history.pop(index)
+            with open(self.execution_history_file, 'w') as f:
+                json.dump(history, f, indent=2)
+            return True
+        return False
