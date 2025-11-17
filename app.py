@@ -891,51 +891,50 @@ with tab2:
     
     if 'portfolio_data' not in st.session_state:
         st.info("ℹ️ Sincronize os dados na aba **Dashboard** primeiro")
-        pass
-    
-    data = st.session_state.portfolio_data
-    lp_positions = data['lp_positions']
-    
-    if not lp_positions:
-        st.info("ℹ️ Nenhuma posição LP encontrada")
     else:
-        # Display positions
-        for pos in lp_positions:
-            with st.container():
-                col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
-                col1.write(f"**{pos.protocol}** ({pos.chain})")
-                col2.write(pos.token_symbol)
-                col3.write(f"{pos.balance:.6f}")
-                col4.write(f"${pos.value:.2f}")
+        data = st.session_state.portfolio_data
+        lp_positions = data['lp_positions']
         
-        st.markdown("---")
-        
-        # Aggregated balances
-        st.subheader("📊 Balanços Agregados")
-        for token, balance in sorted(data['lp_balances'].items()):
-            col1, col2 = st.columns([1, 1])
-            col1.write(f"**{token}**")
-            col2.write(f"{balance:.6f}")
-        
-        # Perp positions
-        st.markdown("---")
-        st.subheader("📉 Posições Short (Hyperliquid)")
-        
-        perp_positions = data['perp_positions']
-        
-        if not perp_positions:
-            st.info("ℹ️ Nenhuma posição perpétua encontrada")
+        if not lp_positions:
+            st.info("ℹ️ Nenhuma posição LP encontrada")
         else:
-            for pos in perp_positions:
-                direction = "SHORT" if pos.size < 0 else "LONG"
-                st.markdown(f"**{pos.symbol} {direction}** ({pos.leverage}x)")
-                
-                col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Size", f"{pos.size:.6f}")
-                col2.metric("Mark", f"${pos.mark_price:.2f}")
-                col3.metric("Value", f"${pos.position_value:.2f}")
-                col4.metric("P&L", f"${pos.open_pnl:.2f}")
-                st.markdown("---")
+            # Display positions
+            for pos in lp_positions:
+                with st.container():
+                    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                    col1.write(f"**{pos.protocol}** ({pos.chain})")
+                    col2.write(pos.token_symbol)
+                    col3.write(f"{pos.balance:.6f}")
+                    col4.write(f"${pos.value:.2f}")
+            
+            st.markdown("---")
+            
+            # Aggregated balances
+            st.subheader("📊 Balanços Agregados")
+            for token, balance in sorted(data['lp_balances'].items()):
+                col1, col2 = st.columns([1, 1])
+                col1.write(f"**{token}**")
+                col2.write(f"{balance:.6f}")
+            
+            # Perp positions
+            st.markdown("---")
+            st.subheader("📉 Posições Short (Hyperliquid)")
+            
+            perp_positions = data['perp_positions']
+            
+            if not perp_positions:
+                st.info("ℹ️ Nenhuma posição perpétua encontrada")
+            else:
+                for pos in perp_positions:
+                    direction = "SHORT" if pos.size < 0 else "LONG"
+                    st.markdown(f"**{pos.symbol} {direction}** ({pos.leverage}x)")
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    col1.metric("Size", f"{pos.size:.6f}")
+                    col2.metric("Mark", f"${pos.mark_price:.2f}")
+                    col3.metric("Value", f"${pos.position_value:.2f}")
+                    col4.metric("P&L", f"${pos.open_pnl:.2f}")
+                    st.markdown("---")
 
 # ==================== TAB 4: HISTÓRICO ====================
 with tab4:
