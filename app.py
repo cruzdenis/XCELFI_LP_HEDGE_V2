@@ -300,6 +300,69 @@ with tab1:
     
     st.markdown("---")
     
+    # Backup and Restore section
+    st.subheader("💾 Backup & Restore")
+    st.markdown("Faça backup de todas as suas configurações e histórico, ou restaure de um backup anterior.")
+    
+    col_backup1, col_backup2 = st.columns(2)
+    
+    with col_backup1:
+        st.markdown("**📥 Download Backup**")
+        if st.button("📥 Baixar Backup", use_container_width=True):
+            backup_data = config_mgr.create_backup()
+            
+            if backup_data.get("config") or backup_data.get("history"):
+                import json
+                backup_json = json.dumps(backup_data, indent=2)
+                
+                # Create download button
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"xcelfi_backup_{timestamp}.json"
+                
+                st.download_button(
+                    label="⬇️ Download Arquivo",
+                    data=backup_json,
+                    file_name=filename,
+                    mime="application/json",
+                    use_container_width=True
+                )
+                st.success("✅ Backup criado! Clique para baixar.")
+            else:
+                st.warning("⚠️ Nenhum dado para fazer backup")
+    
+    with col_backup2:
+        st.markdown("**📤 Upload Backup**")
+        uploaded_file = st.file_uploader(
+            "Selecione arquivo de backup",
+            type=["json"],
+            help="Arquivo .json gerado pelo botão de backup",
+            key="backup_uploader"
+        )
+        
+        if uploaded_file is not None:
+            try:
+                import json
+                backup_data = json.load(uploaded_file)
+                
+                # Show backup info
+                backup_time = backup_data.get("backup_timestamp", "Unknown")
+                st.info(f"📅 Backup de: {backup_time[:19]}")
+                
+                if st.button("🔄 Restaurar Backup", use_container_width=True, type="primary"):
+                    success, message = config_mgr.restore_backup(backup_data)
+                    
+                    if success:
+                        st.success(f"✅ {message}")
+                        st.balloons()
+                        st.info("🔄 Recarregue a página para ver as alterações")
+                    else:
+                        st.error(f"❌ {message}")
+                        
+            except Exception as e:
+                st.error(f"❌ Erro ao ler arquivo: {str(e)}")
+    
+    st.markdown("---")
+    
     # Instructions
     with st.expander("📖 Como obter a API Key"):
         st.markdown("""

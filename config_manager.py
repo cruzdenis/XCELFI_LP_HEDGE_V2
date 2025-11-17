@@ -99,3 +99,40 @@ class ConfigManager:
         if self.history_file.exists():
             self.history_file.unlink()
         return True
+    
+    def create_backup(self):
+        """Create a backup of all data (config + history)"""
+        backup_data = {
+            "backup_version": "1.0",
+            "backup_timestamp": datetime.now().isoformat(),
+            "config": self.load_config(),
+            "history": self.load_history()
+        }
+        return backup_data
+    
+    def restore_backup(self, backup_data):
+        """Restore data from backup"""
+        try:
+            # Validate backup structure
+            if not isinstance(backup_data, dict):
+                return False, "Invalid backup format"
+            
+            if "config" not in backup_data or "history" not in backup_data:
+                return False, "Missing config or history in backup"
+            
+            # Restore config
+            config = backup_data.get("config")
+            if config:
+                with open(self.config_file, 'w') as f:
+                    json.dump(config, f, indent=2)
+            
+            # Restore history
+            history = backup_data.get("history")
+            if history:
+                with open(self.history_file, 'w') as f:
+                    json.dump(history, f, indent=2)
+            
+            return True, "Backup restored successfully"
+            
+        except Exception as e:
+            return False, f"Error restoring backup: {str(e)}"
