@@ -40,6 +40,9 @@ class DeltaNeutralAnalyzer:
         """
         Compare LP and short positions and generate suggestions
         
+        IMPORTANT: If ANY position exceeds tolerance, ALL positions will be adjusted.
+        This ensures complete portfolio rebalancing when triggered.
+        
         Args:
             lp_balances: Dictionary of token balances in LP positions
             short_balances: Dictionary of short position sizes
@@ -51,6 +54,10 @@ class DeltaNeutralAnalyzer:
         
         # Get all unique tokens from both LP and shorts
         all_tokens = set(lp_balances.keys()) | set(short_balances.keys())
+        
+        # First pass: calculate all differences and check if trigger is activated
+        trigger_activated = False
+        temp_suggestions = []
         
         for token in sorted(all_tokens):
             lp_bal = lp_balances.get(token, 0.0)
@@ -93,7 +100,31 @@ class DeltaNeutralAnalyzer:
                 adjustment_amount=adjustment
             )
             
-            suggestions.append(suggestion)
+            temp_suggestions.append(suggestion)
+            
+            # Check if this position triggers full rebalancing
+            if diff_pct > self.tolerance_pct:
+                trigger_activated = True
+        
+        # Second pass: if trigger activated, adjust ALL positions
+        if trigger_activated:
+            for s in temp_suggestions:
+                # Force adjustment for ALL positions, even balanced ones
+                if s.status == "balanced" and s.difference != 0:
+                    # Recalculate as if it needs adjustment
+                    if s.difference > 0:
+                        s.status = "under_hedged"
+                        s.action = "increase_short"
+                        s.adjustment_amount = s.difference
+                    else:
+                        s.status = "over_hedged"
+                        s.action = "decrease_short"
+                        s.adjustment_amount = abs(s.difference)
+                
+                suggestions.append(s)
+        else:
+            # No trigger, return original suggestions
+            suggestions = temp_suggestions
         
         return suggestions
     

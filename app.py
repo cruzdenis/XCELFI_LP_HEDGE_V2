@@ -695,6 +695,14 @@ with tab2:
                 }
                 config_mgr.add_sync_history(summary)
         
+            # Check if trigger is activated (any position exceeds tolerance)
+            trigger_activated = any(s.difference_pct > tolerance_pct for s in suggestions)
+            
+            if trigger_activated:
+                st.warning("⚡ **GATILHO ACIONADO!** Pelo menos uma posição excedeu a tolerância de {}%. **TODAS as posições serão ajustadas** para rebalanceamento completo.".format(tolerance_pct))
+            else:
+                st.success("✅ Todas as posições estão dentro da tolerância de {}%".format(tolerance_pct))
+            
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("✅ Balanceadas", len(balanced))
