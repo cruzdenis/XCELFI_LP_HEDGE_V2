@@ -560,7 +560,7 @@ with tab2:
         # Check if data exists
         if 'portfolio_data' not in st.session_state:
             st.info("ℹ️ Clique em **Sincronizar Agora** para carregar os dados")
-            pass
+            st.stop()  # Stop execution here
     
         data = st.session_state.portfolio_data
     
