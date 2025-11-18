@@ -552,10 +552,10 @@ with tab2:
                             st.success("✅ Dados sincronizados com sucesso!")
                     else:
                         st.error("❌ Erro ao carregar dados")
-                        pass
+                        st.stop()  # Stop immediately after sync failure
                 except Exception as e:
                     st.error(f"❌ Erro: {str(e)}")
-                    pass
+                    st.stop()  # Stop immediately after exception
     
         # Check if data exists
         if 'portfolio_data' not in st.session_state:
