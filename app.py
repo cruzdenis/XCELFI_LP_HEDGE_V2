@@ -1214,10 +1214,10 @@ with tab5:
         # Clear history button
         col_clear1, col_clear2 = st.columns([1, 3])
         with col_clear1:
-        if st.button("🗑️ Limpar Histórico", key="clear_execution_history"):
-            if config_mgr.clear_execution_history():
-                st.success("✅ Histórico de execuções limpo")
-                st.info("🔄 Recarregue a página para atualizar")
+            if st.button("🗑️ Limpar Histórico", key="clear_execution_history"):
+                if config_mgr.clear_execution_history():
+                    st.success("✅ Histórico de execuções limpo")
+                    st.info("🔄 Recarregue a página para atualizar")
         
         st.markdown("---")
         
