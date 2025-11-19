@@ -437,7 +437,7 @@ with tab1:
             config_mgr.add_transaction(trans_type, trans_amount, trans_desc, trans_date)
             date_info = f" ({trans_date[:10]})" if trans_date else ""
             st.success(f"✅ Transação adicionada: ${trans_amount:.2f}{date_info}")
-            st.rerun()
+            st.info("🔄 Recarregue a página para ver a transação na lista")
     
     with col_trans2:
         st.markdown("**📋 Transações Recentes**")
@@ -462,7 +462,7 @@ with tab1:
             if st.button("🗑️ Limpar Transações", use_container_width=True, key="clear_trans"):
                 config_mgr.clear_transactions()
                 st.success("✅ Transações limpas!")
-                st.rerun()
+                st.info("🔄 Recarregue a página para atualizar a lista")
         else:
             st.info("ℹ️ Nenhuma transação registrada")
     
