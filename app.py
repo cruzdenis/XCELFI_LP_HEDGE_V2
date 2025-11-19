@@ -376,6 +376,67 @@ with tab1:
     
     st.markdown("---")
     
+    # Deposit/Withdrawal Management section
+    st.subheader("💰 Gestão de Depósitos/Saques")
+    st.markdown("Registre depósitos e saques para calcular a rentabilidade real (sistema de cotas).")
+    
+    col_trans1, col_trans2 = st.columns(2)
+    
+    with col_trans1:
+        st.markdown("**➕ Adicionar Transação**")
+        trans_type = st.selectbox(
+            "Tipo",
+            options=["deposit", "withdrawal"],
+            format_func=lambda x: "💵 Depósito" if x == "deposit" else "💸 Saque",
+            key="trans_type"
+        )
+        trans_amount = st.number_input(
+            "Valor (USD)",
+            min_value=0.01,
+            value=100.0,
+            step=10.0,
+            key="trans_amount"
+        )
+        trans_desc = st.text_input(
+            "Descrição (opcional)",
+            placeholder="Ex: Depósito inicial",
+            key="trans_desc"
+        )
+        
+        if st.button("➕ Adicionar Transação", use_container_width=True, type="primary", key="add_trans"):
+            config_mgr.add_transaction(trans_type, trans_amount, trans_desc)
+            st.success(f"✅ Transação adicionada: ${trans_amount:.2f}")
+            st.rerun()
+    
+    with col_trans2:
+        st.markdown("**📋 Transações Recentes**")
+        transactions = config_mgr.load_transactions()
+        
+        if transactions:
+            # Show last 5 transactions
+            for i, trans in enumerate(transactions[-5:][::-1]):
+                trans_time = trans['timestamp'][:19]
+                trans_type_icon = "💵" if trans['type'] == 'deposit' else "💸"
+                trans_amount = trans['amount_usd']
+                trans_desc = trans.get('description', '')
+                
+                st.text(f"{trans_type_icon} ${trans_amount:.2f} - {trans_time}")
+                if trans_desc:
+                    st.caption(trans_desc)
+            
+            if len(transactions) > 5:
+                st.caption(f"... e mais {len(transactions) - 5} transações")
+            
+            # Clear button
+            if st.button("🗑️ Limpar Transações", use_container_width=True, key="clear_trans"):
+                config_mgr.clear_transactions()
+                st.success("✅ Transações limpas!")
+                st.rerun()
+        else:
+            st.info("ℹ️ Nenhuma transação registrada")
+    
+    st.markdown("---")
+    
     # Backup and Restore section
     st.subheader("💾 Backup & Restore")
     st.markdown("Faça backup de todas as suas configurações e histórico, ou restaure de um backup anterior.")
@@ -666,6 +727,113 @@ with tab2:
                 st.info(f"ℹ️ Nenhum dado disponível para o período selecionado")
         else:
             st.info("ℹ️ Sincronize mais vezes para visualizar o gráfico de evolução")
+        
+        st.markdown("---")
+        
+        # Quota Evolution Chart
+        st.subheader("📈 Evolução da Cota (Rentabilidade Real)")
+        
+        transactions = config_mgr.load_transactions()
+        
+        if transactions:
+            from quota_calculator import QuotaCalculator
+            
+            quota_calc = QuotaCalculator(initial_quota_value=1.0)
+            quota_history = quota_calc.calculate_quota_history(history, transactions)
+            
+            if len(quota_history) > 1:
+                import plotly.graph_objects as go
+                
+                # Create quota evolution chart
+                timestamps = [datetime.fromisoformat(q['timestamp']) for q in quota_history]
+                quota_values = [q['quota_value'] for q in quota_history]
+                
+                fig_quota = go.Figure()
+                
+                fig_quota.add_trace(go.Scatter(
+                    x=timestamps,
+                    y=quota_values,
+                    mode='lines+markers',
+                    name='Valor da Cota',
+                    line=dict(color='#00D9FF', width=3),
+                    marker=dict(size=6),
+                    hovertemplate='<b>%{x}</b><br>Cota: $%{y:.4f}<extra></extra>'
+                ))
+                
+                # Add reference line at $1.00
+                fig_quota.add_hline(
+                    y=1.0,
+                    line_dash="dash",
+                    line_color="gray",
+                    annotation_text="Valor Inicial ($1.00)",
+                    annotation_position="right"
+                )
+                
+                fig_quota.update_layout(
+                    title="Valor da Cota ao Longo do Tempo",
+                    xaxis_title="Data",
+                    yaxis_title="Valor da Cota (USD)",
+                    hovermode='x unified',
+                    template='plotly_dark',
+                    height=400
+                )
+                
+                st.plotly_chart(fig_quota, use_container_width=True)
+                
+                # Performance metrics
+                metrics = quota_calc.calculate_performance_metrics(quota_history, transactions)
+                
+                col_perf1, col_perf2, col_perf3, col_perf4 = st.columns(4)
+                
+                with col_perf1:
+                    st.metric(
+                        "Rentabilidade",
+                        f"{metrics['total_return_pct']:.2f}%",
+                        delta=f"{metrics['total_return_pct']:.2f}%"
+                    )
+                
+                with col_perf2:
+                    st.metric(
+                        "Valor da Cota",
+                        f"${metrics['current_quota_value']:.4f}",
+                        delta=f"${metrics['current_quota_value'] - metrics['initial_quota_value']:.4f}"
+                    )
+                
+                with col_perf3:
+                    st.metric(
+                        "Total Investido",
+                        f"${metrics['total_invested']:,.2f}"
+                    )
+                
+                with col_perf4:
+                    st.metric(
+                        "Lucro/Prejuízo",
+                        f"${metrics['profit_loss']:+,.2f}",
+                        delta=f"{(metrics['profit_loss']/metrics['total_invested']*100) if metrics['total_invested'] > 0 else 0:.2f}%"
+                    )
+                
+                # Detailed info expander
+                with st.expander("📊 Detalhes do Sistema de Cotas"):
+                    st.markdown(f"""
+                    **Como Funciona:**
+                    - Valor inicial da cota: ${metrics['initial_quota_value']:.2f}
+                    - Valor atual da cota: ${metrics['current_quota_value']:.4f}
+                    - Total de cotas: {metrics['total_quotas']:.4f}
+                    
+                    **Transações:**
+                    - Total de depósitos: ${metrics['total_deposits']:,.2f}
+                    - Total de saques: ${metrics['total_withdrawals']:,.2f}
+                    - Líquido investido: ${metrics['total_invested']:,.2f}
+                    
+                    **Performance:**
+                    - Valor atual: ${metrics['current_value']:,.2f}
+                    - Lucro/Prejuízo: ${metrics['profit_loss']:+,.2f}
+                    - Rentabilidade: {metrics['total_return_pct']:.2f}%
+                    """)
+            else:
+                st.info("ℹ️ Sincronize mais vezes para visualizar o gráfico de cotas")
+        else:
+            st.info("ℹ️ Registre depósitos/saques na aba **Configuração** para ativar o sistema de cotas")
         
         st.markdown("---")
     

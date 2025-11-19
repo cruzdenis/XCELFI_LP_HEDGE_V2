@@ -17,6 +17,7 @@ class ConfigManager:
         self.config_file = self.config_dir / "config.json"
         self.history_file = self.config_dir / "history.json"
         self.execution_history_file = self.config_dir / "execution_history.json"
+        self.transactions_file = self.config_dir / "transactions.json"
     
     def save_config(self, api_key, wallet_address, tolerance_pct=5.0, hyperliquid_private_key="", auto_sync_enabled=False, auto_sync_interval_hours=1, auto_execute_enabled=False):
         """Save configuration to file"""
@@ -195,3 +196,39 @@ class ConfigManager:
                 json.dump(history, f, indent=2)
             return True
         return False
+    
+    def add_transaction(self, transaction_type: str, amount_usd: float, description: str = ""):
+        """Add a deposit or withdrawal transaction"""
+        transactions = self.load_transactions()
+        
+        transaction = {
+            "timestamp": datetime.now().isoformat(),
+            "type": transaction_type,  # "deposit" or "withdrawal"
+            "amount_usd": amount_usd,
+            "description": description
+        }
+        
+        transactions.append(transaction)
+        
+        with open(self.transactions_file, 'w') as f:
+            json.dump(transactions, f, indent=2)
+    
+    def load_transactions(self) -> list:
+        """Load all transactions"""
+        if os.path.exists(self.transactions_file):
+            with open(self.transactions_file, 'r') as f:
+                return json.load(f)
+        return []
+    
+    def delete_transaction(self, index: int):
+        """Delete a transaction by index"""
+        transactions = self.load_transactions()
+        if 0 <= index < len(transactions):
+            transactions.pop(index)
+            with open(self.transactions_file, 'w') as f:
+                json.dump(transactions, f, indent=2)
+    
+    def clear_transactions(self):
+        """Clear all transactions"""
+        with open(self.transactions_file, 'w') as f:
+            json.dump([], f)
