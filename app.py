@@ -1150,7 +1150,7 @@ with tab4:
         if st.button("🗑️ Limpar Histórico", key="clear_sync_history"):
             config_mgr.clear_history()
             st.success("✅ Histórico limpo")
-            st.rerun()
+            st.info("🔄 Recarregue a página para atualizar")
         
         st.markdown("---")
         
@@ -1168,10 +1168,10 @@ with tab4:
                 col4.metric("⚠️ Sobre-Hedge", summary.get('over_hedged', 0))
                 
                 # Delete button
-                if st.button("❌ Excluir esta entrada", key=f"del_sync_{idx}", use_container_width=True):
-                    if config_mgr.delete_sync_entry(idx):
+                if st.button("❌ Excluir esta entrada", key=f"del_sync_{timestamp}", use_container_width=True):
+                    if config_mgr.delete_sync_entry(timestamp):
                         st.success("✅ Entrada excluída")
-                        st.rerun()
+                        st.info("🔄 Recarregue a página para atualizar a lista")
                     else:
                         st.error("❌ Erro ao excluir entrada")
 
@@ -1214,10 +1214,10 @@ with tab5:
         # Clear history button
         col_clear1, col_clear2 = st.columns([1, 3])
         with col_clear1:
-            if st.button("🗑️ Limpar Histórico", key="clear_execution_history"):
-                config_mgr.clear_execution_history()
+        if st.button("🗑️ Limpar Histórico", key="clear_execution_history"):
+            if config_mgr.clear_execution_history():
                 st.success("✅ Histórico de execuções limpo")
-                st.rerun()
+                st.info("🔄 Recarregue a página para atualizar")
         
         st.markdown("---")
         
@@ -1285,10 +1285,10 @@ with tab5:
                     st.markdown(f"**Avg Price:** ${execution.get('avg_price'):.2f}")
                 
                 # Delete button
-                if st.button("❌ Excluir esta entrada", key=f"del_exec_{original_idx}_{filtered_idx}", use_container_width=True):
-                    if config_mgr.delete_execution_entry(original_idx):
+                if st.button("❌ Excluir esta entrada", key=f"del_exec_{timestamp}", use_container_width=True):
+                    if config_mgr.delete_execution_entry(timestamp):
                         st.success("✅ Entrada excluída")
-                        st.rerun()
+                        st.info("🔄 Recarregue a página para atualizar a lista")
                     else:
                         st.error("❌ Erro ao excluir entrada")
 

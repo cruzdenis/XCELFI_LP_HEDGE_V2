@@ -177,21 +177,25 @@ class ConfigManager:
             self.execution_history_file.unlink()
         return True
     
-    def delete_sync_entry(self, index):
-        """Delete a specific sync history entry by index"""
+    def delete_sync_entry(self, timestamp):
+        """Delete a specific sync history entry by timestamp"""
         history = self.load_history()
-        if 0 <= index < len(history):
-            history.pop(index)
+        original_len = len(history)
+        history = [entry for entry in history if entry.get('timestamp') != timestamp]
+        
+        if len(history) < original_len:
             with open(self.history_file, 'w') as f:
                 json.dump(history, f, indent=2)
             return True
         return False
     
-    def delete_execution_entry(self, index):
-        """Delete a specific execution history entry by index"""
+    def delete_execution_entry(self, timestamp):
+        """Delete a specific execution history entry by timestamp"""
         history = self.load_execution_history()
-        if 0 <= index < len(history):
-            history.pop(index)
+        original_len = len(history)
+        history = [entry for entry in history if entry.get('timestamp') != timestamp]
+        
+        if len(history) < original_len:
             with open(self.execution_history_file, 'w') as f:
                 json.dump(history, f, indent=2)
             return True
