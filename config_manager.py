@@ -197,12 +197,18 @@ class ConfigManager:
             return True
         return False
     
-    def add_transaction(self, transaction_type: str, amount_usd: float, description: str = ""):
+    def add_transaction(self, transaction_type: str, amount_usd: float, description: str = "", custom_date: str = None):
         """Add a deposit or withdrawal transaction"""
         transactions = self.load_transactions()
         
+        # Use custom date if provided, otherwise use current time
+        if custom_date:
+            timestamp = custom_date
+        else:
+            timestamp = datetime.now().isoformat()
+        
         transaction = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": timestamp,
             "type": transaction_type,  # "deposit" or "withdrawal"
             "amount_usd": amount_usd,
             "description": description

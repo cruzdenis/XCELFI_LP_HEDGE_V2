@@ -403,9 +403,40 @@ with tab1:
             key="trans_desc"
         )
         
+        # Custom date option
+        use_custom_date = st.checkbox(
+            "Usar data customizada (para transações retroativas)",
+            value=False,
+            key="use_custom_date"
+        )
+        
+        trans_date = None
+        if use_custom_date:
+            from datetime import date, time
+            
+            col_date, col_time = st.columns(2)
+            with col_date:
+                selected_date = st.date_input(
+                    "Data",
+                    value=date.today(),
+                    key="trans_date"
+                )
+            with col_time:
+                selected_time = st.time_input(
+                    "Hora",
+                    value=time(12, 0),
+                    key="trans_time"
+                )
+            
+            # Combine date and time
+            from datetime import datetime
+            trans_datetime = datetime.combine(selected_date, selected_time)
+            trans_date = trans_datetime.isoformat()
+        
         if st.button("➕ Adicionar Transação", use_container_width=True, type="primary", key="add_trans"):
-            config_mgr.add_transaction(trans_type, trans_amount, trans_desc)
-            st.success(f"✅ Transação adicionada: ${trans_amount:.2f}")
+            config_mgr.add_transaction(trans_type, trans_amount, trans_desc, trans_date)
+            date_info = f" ({trans_date[:10]})" if trans_date else ""
+            st.success(f"✅ Transação adicionada: ${trans_amount:.2f}{date_info}")
             st.rerun()
     
     with col_trans2:
