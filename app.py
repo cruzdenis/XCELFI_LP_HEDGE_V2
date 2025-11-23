@@ -1177,7 +1177,14 @@ with tab2:
             st.markdown("---")
         
             # Fetch current prices for USD conversion
+            # First, get prices from LP positions (from Octav.fi)
             token_prices = {}
+            for pos in data['lp_positions']:
+                symbol = client.normalize_symbol(pos.token_symbol)
+                if pos.price > 0:
+                    token_prices[symbol] = pos.price
+            
+            # Then, try to get prices from Hyperliquid (more up-to-date)
             try:
                 if config_mgr.config.get('hyperliquid_private_key'):
                     from hyperliquid_client import HyperliquidClient
@@ -1206,13 +1213,25 @@ with tab2:
                     
                     # Display with USD values
                     if price > 0:
-                        col1.metric("LP Balance", f"{s.lp_balance:.6f}", f"${lp_usd:.2f}")
-                        col2.metric("Short Balance", f"{s.short_balance:.6f}", f"${short_usd:.2f}")
-                        col3.metric("Diferença", f"{s.difference:+.6f} ({s.difference_pct:.2f}%)", f"${diff_usd:+.2f}")
+                        col1.metric(
+                            "LP Balance", 
+                            f"{s.lp_balance:.6f} {s.token}",
+                            f"${lp_usd:,.2f} USD"
+                        )
+                        col2.metric(
+                            "Short Balance", 
+                            f"{s.short_balance:.6f} {s.token}",
+                            f"${short_usd:,.2f} USD"
+                        )
+                        col3.metric(
+                            "Diferença", 
+                            f"{s.difference:+.6f} {s.token} ({s.difference_pct:.2f}%)",
+                            f"${diff_usd:+,.2f} USD"
+                        )
                     else:
-                        col1.metric("LP Balance", f"{s.lp_balance:.6f}")
-                        col2.metric("Short Balance", f"{s.short_balance:.6f}")
-                        col3.metric("Diferença", f"{s.difference:+.6f} ({s.difference_pct:.2f}%)")
+                        col1.metric("LP Balance", f"{s.lp_balance:.6f} {s.token}")
+                        col2.metric("Short Balance", f"{s.short_balance:.6f} {s.token}")
+                        col3.metric("Diferença", f"{s.difference:+.6f} {s.token} ({s.difference_pct:.2f}%)")
                 
                     if s.action != "none":
                         action_text = "AUMENTAR" if s.action == "increase_short" else "DIMINUIR"
