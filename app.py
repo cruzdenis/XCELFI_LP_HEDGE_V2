@@ -964,23 +964,24 @@ with tab2:
         # Display target allocation info
         with st.expander("ℹ️ Sobre a Alocação de Capital"):
             st.markdown(f"""
-            **Estratégia de Alocação:**
+            **Estratégia de Alocação (Nova Lógica):**
             
-            - **Target LPs**: {target_lp_pct:.0f}% do capital total
-              - Maximiza efetividade operacional
-              - Gera fees de LP
-              
-            - **Target Hyperliquid**: {target_hyperliquid_pct:.0f}% do capital total
-              - Mantém margem operacional para hedges
-              - Previne risco de liquidação em movimentos rápidos
-              
-            - **Threshold de Alerta**: {rebalancing_threshold_pct:.0f}% de desvio
-              - Alerta quando alocação desvia mais que {rebalancing_threshold_pct:.0f}% do target
-              
+            **Faixa Ideal Configurada:** {lp_min_ideal:.0f}% - {lp_max_ideal:.0f}% em LPs
+            **Target (Centro):** {lp_target:.0f}%
+            
+            **Por que essa faixa?**
             
             - **Mínimo {lp_min_ideal:.0f}%**: Garante rentabilidade adequada
+              - Abaixo disso: Capital subutilizado
+              - Sistema perde efetividade operacional
+              
             - **Target {lp_target:.0f}%**: Balanço ideal entre rentabilidade e segurança
+              - Centro da faixa ideal
+              - Buffer dos dois lados
+              
             - **Máximo {lp_max_ideal:.0f}%**: Margem de segurança antes de risco de liquidação
+              - Acima disso: Margem insuficiente na Hyperliquid
+              - Risco de liquidação em movimentos rápidos
             
             **Configuração:**
             - Ajuste a faixa ideal na aba "⚙️ Configuração"
