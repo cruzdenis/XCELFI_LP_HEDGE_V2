@@ -1763,7 +1763,7 @@ with tab6:
         for pos in perp_positions:
             if pos.size < 0:  # Short position
                 # Position value is already in USD
-                total_liabilities += abs(pos.notional_value)
+                total_liabilities += abs(pos.position_value)
         
         # Net equity
         net_equity = total_assets - total_liabilities
@@ -1847,7 +1847,7 @@ with tab6:
             for pos in perp_positions:
                 if pos.size < 0:  # Short position
                     token = pos.symbol
-                    value = abs(pos.notional_value)
+                    value = abs(pos.position_value)
                     liabilities_by_token[token] = liabilities_by_token.get(token, 0) + value
             
             # Pie chart for liabilities
