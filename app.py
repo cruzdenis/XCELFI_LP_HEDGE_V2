@@ -80,7 +80,16 @@ def background_sync_worker():
                 
                 if api_key and wallet_address:
                     client = OctavClient(api_key)
+                    
+                    # First sync
                     portfolio = client.get_portfolio(wallet_address)
+                    
+                    if portfolio:
+                        # Wait 5 seconds for protocols to update (especially Revert Finance)
+                        time.sleep(5)
+                        
+                        # Second sync for validation
+                        portfolio = client.get_portfolio(wallet_address)
                     
                     if portfolio:
                         lp_positions = client.extract_lp_positions(portfolio)
@@ -632,22 +641,42 @@ with tab2:
     
         # Initialize session state for data
         if 'portfolio_data' not in st.session_state or sync_now:
-            with st.spinner("🔄 Sincronizando dados do Octav.fi..."):
+            # Double sync with 5-second delay for protocol data validation
+            with st.spinner("🔄 Sincronizando dados do Octav.fi (1ª tentativa)..."):
                 try:
+                    # First sync
+                    data = load_portfolio_data()
+                    if not data:
+                        st.error("❌ Erro ao carregar dados na 1ª sincronização")
+                        st.stop()
+                    
+                    st.info("⏳ Aguardando 5 segundos para validação de todos os protocolos (especialmente Revert Finance)...")
+                    
+                except Exception as e:
+                    st.error(f"❌ Erro na 1ª sincronização: {str(e)}")
+                    st.stop()
+            
+            # Wait 5 seconds for protocols to update
+            time.sleep(5)
+            
+            # Second sync for validation
+            with st.spinner("🔄 Sincronizando dados do Octav.fi (2ª tentativa - validação)..."):
+                try:
+                    # Second sync to capture all protocols
                     data = load_portfolio_data()
                     if data:
                         st.session_state.portfolio_data = data
                         st.session_state.last_sync_time = datetime.now().isoformat()
                         if should_auto_sync:
-                            st.success("✅ Sincronização automática concluída!")
+                            st.success("✅ Sincronização automática concluída com dupla validação!")
                         else:
-                            st.success("✅ Dados sincronizados com sucesso!")
+                            st.success("✅ Dados sincronizados com sucesso! (Dupla validação realizada)")
                     else:
-                        st.error("❌ Erro ao carregar dados")
-                        st.stop()  # Stop immediately after sync failure
+                        st.error("❌ Erro ao carregar dados na 2ª sincronização")
+                        st.stop()
                 except Exception as e:
-                    st.error(f"❌ Erro: {str(e)}")
-                    st.stop()  # Stop immediately after exception
+                    st.error(f"❌ Erro na 2ª sincronização: {str(e)}")
+                    st.stop()
     
         # Check if data exists
         if 'portfolio_data' not in st.session_state:
