@@ -3,11 +3,14 @@ Capital Allocation Analyzer
 
 Monitors capital distribution across protocols and alerts when rebalancing is needed.
 
-Target allocation:
-- 85% in LPs (Uniswap, Revert, etc.)
-- 15% in Hyperliquid (for operational margin)
+NEW LOGIC:
+- 🟢 ZONA IDEAL: 70-90% em LPs
+- 🔴 RISCO ALTO (Liquidação): >90% em LPs - Margem insuficiente na Hyperliquid
+- 🟡 RISCO MÉDIO (Rentabilidade): <70% em LPs - Perda de potencial de rentabilidade
 
-Alerts when deviation exceeds threshold (default 40%).
+Target allocation (center of ideal range):
+- 80% in LPs (Uniswap, Revert, etc.)
+- 20% in Hyperliquid (for operational margin)
 """
 
 from dataclasses import dataclass
@@ -19,6 +22,12 @@ class ProtocolType(Enum):
     WALLET = "wallet"  # Idle capital in wallet
     LP = "lp"  # Liquidity Provider positions
     HYPERLIQUID = "hyperliquid"  # Perpetuals exchange
+
+class RiskLevel(Enum):
+    """Risk levels for capital allocation"""
+    IDEAL = "ideal"  # 70-90% in LPs
+    HIGH_LIQUIDATION = "high_liquidation"  # >90% in LPs - risk of liquidation
+    MEDIUM_PROFITABILITY = "medium_profitability"  # <70% in LPs - loss of profitability
 
 @dataclass
 class ProtocolBalance:
@@ -39,11 +48,13 @@ class AllocationStatus:
     wallet_total: float
     wallet_percentage: float
     
-    target_lp_percentage: float
-    target_hyperliquid_percentage: float
+    # Ideal range (not single target)
+    lp_min_ideal: float  # 70%
+    lp_max_ideal: float  # 90%
+    lp_target: float  # 80% (center)
     
-    lp_deviation: float  # Deviation from target (percentage points)
-    hyperliquid_deviation: float
+    risk_level: RiskLevel
+    risk_description: str
     
     needs_rebalancing: bool
     rebalancing_alert: str
@@ -56,21 +67,26 @@ class CapitalAllocationAnalyzer:
     
     def __init__(
         self,
-        target_lp_pct: float = 85.0,
-        target_hyperliquid_pct: float = 15.0,
-        deviation_threshold_pct: float = 40.0
+        lp_min_ideal: float = 70.0,
+        lp_max_ideal: float = 90.0,
+        lp_target: float = 80.0
     ):
         """
         Initialize analyzer.
         
         Args:
-            target_lp_pct: Target percentage for LP positions (default 85%)
-            target_hyperliquid_pct: Target percentage for Hyperliquid (default 15%)
-            deviation_threshold_pct: Alert threshold for deviation (default 40%)
+            lp_min_ideal: Minimum ideal LP percentage (default 70%)
+            lp_max_ideal: Maximum ideal LP percentage (default 90%)
+            lp_target: Target LP percentage, center of range (default 80%)
         """
-        self.target_lp_pct = target_lp_pct
-        self.target_hyperliquid_pct = target_hyperliquid_pct
-        self.deviation_threshold_pct = deviation_threshold_pct
+        self.lp_min_ideal = lp_min_ideal
+        self.lp_max_ideal = lp_max_ideal
+        self.lp_target = lp_target
+        
+        # Hyperliquid targets derived from LP targets
+        self.hyperliquid_target = 100.0 - lp_target
+        self.hyperliquid_min_ideal = 100.0 - lp_max_ideal
+        self.hyperliquid_max_ideal = 100.0 - lp_min_ideal
     
     def analyze_allocation(
         self,
@@ -130,29 +146,16 @@ class CapitalAllocationAnalyzer:
         hyperliquid_pct = (hyperliquid_total / total_capital) * 100
         wallet_pct = (wallet_total / total_capital) * 100
         
-        # Calculate deviations from target
-        lp_deviation = lp_pct - self.target_lp_pct
-        hyperliquid_deviation = hyperliquid_pct - self.target_hyperliquid_pct
+        # Determine risk level
+        risk_level, risk_description = self._assess_risk(lp_pct, hyperliquid_pct)
         
         # Check if rebalancing is needed
-        lp_deviation_abs = abs(lp_deviation)
-        hyperliquid_deviation_abs = abs(hyperliquid_deviation)
-        
-        # Deviation threshold is percentage of target
-        # Example: 40% deviation on 85% target = 34% threshold
-        lp_threshold = self.target_lp_pct * (self.deviation_threshold_pct / 100)
-        hyperliquid_threshold = self.target_hyperliquid_pct * (self.deviation_threshold_pct / 100)
-        
-        needs_rebalancing = (
-            lp_deviation_abs > lp_threshold or
-            hyperliquid_deviation_abs > hyperliquid_threshold
-        )
+        needs_rebalancing = (risk_level != RiskLevel.IDEAL)
         
         # Generate alert and suggestion
         alert, suggestion = self._generate_rebalancing_message(
-            lp_pct, hyperliquid_pct, lp_deviation, hyperliquid_deviation,
-            lp_total, hyperliquid_total, total_capital,
-            needs_rebalancing
+            lp_pct, hyperliquid_pct, lp_total, hyperliquid_total, 
+            total_capital, risk_level
         )
         
         # Create protocol balance objects with percentages
@@ -186,79 +189,109 @@ class CapitalAllocationAnalyzer:
             hyperliquid_percentage=hyperliquid_pct,
             wallet_total=wallet_total,
             wallet_percentage=wallet_pct,
-            target_lp_percentage=self.target_lp_pct,
-            target_hyperliquid_percentage=self.target_hyperliquid_pct,
-            lp_deviation=lp_deviation,
-            hyperliquid_deviation=hyperliquid_deviation,
+            lp_min_ideal=self.lp_min_ideal,
+            lp_max_ideal=self.lp_max_ideal,
+            lp_target=self.lp_target,
+            risk_level=risk_level,
+            risk_description=risk_description,
             needs_rebalancing=needs_rebalancing,
             rebalancing_alert=alert,
             rebalancing_suggestion=suggestion,
             protocol_balances=protocol_balance_objects
         )
     
+    def _assess_risk(self, lp_pct: float, hyperliquid_pct: float) -> tuple[RiskLevel, str]:
+        """
+        Assess risk level based on LP percentage.
+        
+        Returns:
+            (RiskLevel, description)
+        """
+        if lp_pct > self.lp_max_ideal:
+            # >90% in LPs - High risk of liquidation
+            return (
+                RiskLevel.HIGH_LIQUIDATION,
+                f"🔴 RISCO ALTO: {lp_pct:.1f}% em LPs (>{self.lp_max_ideal:.0f}%) - "
+                f"Margem operacional insuficiente na Hyperliquid. "
+                f"Risco de liquidação em movimentos rápidos de mercado!"
+            )
+        elif lp_pct < self.lp_min_ideal:
+            # <70% in LPs - Medium risk of lost profitability
+            return (
+                RiskLevel.MEDIUM_PROFITABILITY,
+                f"🟡 RISCO MÉDIO: {lp_pct:.1f}% em LPs (<{self.lp_min_ideal:.0f}%) - "
+                f"Capital subutilizado. Perda de potencial de rentabilidade!"
+            )
+        else:
+            # 70-90% in LPs - Ideal range
+            return (
+                RiskLevel.IDEAL,
+                f"🟢 ZONA IDEAL: {lp_pct:.1f}% em LPs ({self.lp_min_ideal:.0f}-{self.lp_max_ideal:.0f}%) - "
+                f"Alocação balanceada entre rentabilidade e segurança operacional."
+            )
+    
     def _generate_rebalancing_message(
         self,
         lp_pct: float,
         hyperliquid_pct: float,
-        lp_deviation: float,
-        hyperliquid_deviation: float,
         lp_total: float,
         hyperliquid_total: float,
         total_capital: float,
-        needs_rebalancing: bool
+        risk_level: RiskLevel
     ) -> tuple[str, Optional[str]]:
         """Generate alert message and rebalancing suggestion"""
         
-        if not needs_rebalancing:
+        if risk_level == RiskLevel.IDEAL:
             return (
-                "✅ Alocação de capital dentro dos parâmetros ideais",
+                f"✅ Alocação dentro da zona ideal ({self.lp_min_ideal:.0f}-{self.lp_max_ideal:.0f}% em LPs)",
                 None
             )
         
-        # Determine primary issue
-        issues = []
         suggestions = []
         
-        # Check LP allocation
-        if lp_pct < self.target_lp_pct:
-            shortage_pct = self.target_lp_pct - lp_pct
-            shortage_usd = (shortage_pct / 100) * total_capital
-            issues.append(f"LPs abaixo do target ({lp_pct:.1f}% vs {self.target_lp_pct:.1f}%)")
-            suggestions.append(
-                f"Transferir ~${shortage_usd:,.2f} da Hyperliquid para LPs "
-                f"para atingir {self.target_lp_pct:.0f}%"
+        if risk_level == RiskLevel.HIGH_LIQUIDATION:
+            # >90% in LPs - Need to move to Hyperliquid URGENTLY
+            target_lp_pct = self.lp_max_ideal  # Bring down to 90%
+            excess_pct = lp_pct - target_lp_pct
+            excess_usd = (excess_pct / 100) * total_capital
+            
+            alert = (
+                f"🔴 REBALANCEAMENTO IMEDIATO NECESSÁRIO!\n\n"
+                f"**RISCO ALTO DE LIQUIDAÇÃO**\n"
+                f"LPs: {lp_pct:.1f}% (>{self.lp_max_ideal:.0f}%) | "
+                f"Hyperliquid: {hyperliquid_pct:.1f}% (<{self.hyperliquid_min_ideal:.0f}%)\n\n"
+                f"Margem operacional insuficiente. Em movimentos rápidos de alta no mercado, "
+                f"posições short podem ser liquidadas!"
             )
             
-            # Risk warning
-            if lp_pct < 70:  # Critical level
-                issues.append("⚠️ RISCO: Efetividade operacional comprometida!")
-        
-        elif lp_pct > self.target_lp_pct:
-            excess_pct = lp_pct - self.target_lp_pct
-            excess_usd = (excess_pct / 100) * total_capital
-            issues.append(f"LPs acima do target ({lp_pct:.1f}% vs {self.target_lp_pct:.1f}%)")
             suggestions.append(
-                f"Transferir ~${excess_usd:,.2f} das LPs para Hyperliquid "
-                f"para atingir {self.target_lp_pct:.0f}%"
+                f"**AÇÃO URGENTE:**\n"
+                f"Transferir **${excess_usd:,.2f}** das LPs para Hyperliquid "
+                f"para reduzir LPs para {target_lp_pct:.0f}% e aumentar margem de segurança."
             )
         
-        # Check Hyperliquid allocation
-        if hyperliquid_pct < self.target_hyperliquid_pct:
-            shortage_pct = self.target_hyperliquid_pct - hyperliquid_pct
+        elif risk_level == RiskLevel.MEDIUM_PROFITABILITY:
+            # <70% in LPs - Need to move to LPs
+            target_lp_pct = self.lp_min_ideal  # Bring up to 70%
+            shortage_pct = target_lp_pct - lp_pct
             shortage_usd = (shortage_pct / 100) * total_capital
-            issues.append(f"Hyperliquid abaixo do target ({hyperliquid_pct:.1f}% vs {self.target_hyperliquid_pct:.1f}%)")
             
-            # Risk warning
-            if hyperliquid_pct < 10:  # Critical level
-                issues.append("⚠️ RISCO DE LIQUIDAÇÃO: Margem operacional muito baixa!")
+            alert = (
+                f"🟡 REBALANCEAMENTO RECOMENDADO\n\n"
+                f"**RISCO MÉDIO - Perda de Rentabilidade**\n"
+                f"LPs: {lp_pct:.1f}% (<{self.lp_min_ideal:.0f}%) | "
+                f"Hyperliquid: {hyperliquid_pct:.1f}% (>{self.hyperliquid_max_ideal:.0f}%)\n\n"
+                f"Capital subutilizado em LPs. Sistema perde efetividade operacional e "
+                f"potencial de rentabilidade!"
+            )
+            
+            suggestions.append(
+                f"**AÇÃO RECOMENDADA:**\n"
+                f"Transferir **${shortage_usd:,.2f}** da Hyperliquid para LPs "
+                f"para aumentar LPs para {target_lp_pct:.0f}% e maximizar rentabilidade."
+            )
         
-        elif hyperliquid_pct > self.target_hyperliquid_pct:
-            excess_pct = hyperliquid_pct - self.target_hyperliquid_pct
-            excess_usd = (excess_pct / 100) * total_capital
-            issues.append(f"Hyperliquid acima do target ({hyperliquid_pct:.1f}% vs {self.target_hyperliquid_pct:.1f}%)")
-        
-        alert = "⚠️ REBALANCEAMENTO NECESSÁRIO: " + " | ".join(issues)
-        suggestion = "\n".join(suggestions) if suggestions else None
+        suggestion = "\n\n".join(suggestions) if suggestions else None
         
         return alert, suggestion
     
@@ -272,10 +305,11 @@ class CapitalAllocationAnalyzer:
             hyperliquid_percentage=0.0,
             wallet_total=0.0,
             wallet_percentage=0.0,
-            target_lp_percentage=self.target_lp_pct,
-            target_hyperliquid_percentage=self.target_hyperliquid_pct,
-            lp_deviation=0.0,
-            hyperliquid_deviation=0.0,
+            lp_min_ideal=self.lp_min_ideal,
+            lp_max_ideal=self.lp_max_ideal,
+            lp_target=self.lp_target,
+            risk_level=RiskLevel.IDEAL,
+            risk_description="ℹ️ Sem dados de capital para analisar",
             needs_rebalancing=False,
             rebalancing_alert="ℹ️ Sem dados de capital para analisar",
             rebalancing_suggestion=None,
@@ -285,24 +319,49 @@ class CapitalAllocationAnalyzer:
 # Example usage
 if __name__ == "__main__":
     analyzer = CapitalAllocationAnalyzer(
-        target_lp_pct=85.0,
-        target_hyperliquid_pct=15.0,
-        deviation_threshold_pct=40.0
+        lp_min_ideal=70.0,
+        lp_max_ideal=90.0,
+        lp_target=80.0
     )
     
-    # Example: Balanced allocation
-    protocol_balances = {
-        "uniswap_v3": 8500.0,
-        "revert_finance": 0.0,
-        "hyperliquid": 1500.0
-    }
+    print("=" * 60)
+    print("TESTE 1: Alocação Ideal (80% LPs)")
+    print("=" * 60)
+    status = analyzer.analyze_allocation({
+        "revert_finance": 8000.0,
+        "hyperliquid": 2000.0
+    })
+    print(f"LPs: {status.lp_percentage:.1f}% | Hyper: {status.hyperliquid_percentage:.1f}%")
+    print(f"Risk: {status.risk_level.value}")
+    print(f"Description: {status.risk_description}")
+    print(f"Alert: {status.rebalancing_alert}")
+    print()
     
-    status = analyzer.analyze_allocation(protocol_balances, wallet_balance=0.0)
-    
-    print(f"Total Capital: ${status.total_capital:,.2f}")
-    print(f"LP: ${status.lp_total:,.2f} ({status.lp_percentage:.1f}%)")
-    print(f"Hyperliquid: ${status.hyperliquid_total:,.2f} ({status.hyperliquid_percentage:.1f}%)")
-    print(f"Needs Rebalancing: {status.needs_rebalancing}")
+    print("=" * 60)
+    print("TESTE 2: Risco Alto - Liquidação (95% LPs)")
+    print("=" * 60)
+    status = analyzer.analyze_allocation({
+        "revert_finance": 9500.0,
+        "hyperliquid": 500.0
+    })
+    print(f"LPs: {status.lp_percentage:.1f}% | Hyper: {status.hyperliquid_percentage:.1f}%")
+    print(f"Risk: {status.risk_level.value}")
+    print(f"Description: {status.risk_description}")
     print(f"Alert: {status.rebalancing_alert}")
     if status.rebalancing_suggestion:
-        print(f"Suggestion: {status.rebalancing_suggestion}")
+        print(f"Suggestion:\n{status.rebalancing_suggestion}")
+    print()
+    
+    print("=" * 60)
+    print("TESTE 3: Risco Médio - Rentabilidade (60% LPs)")
+    print("=" * 60)
+    status = analyzer.analyze_allocation({
+        "revert_finance": 6000.0,
+        "hyperliquid": 4000.0
+    })
+    print(f"LPs: {status.lp_percentage:.1f}% | Hyper: {status.hyperliquid_percentage:.1f}%")
+    print(f"Risk: {status.risk_level.value}")
+    print(f"Description: {status.risk_description}")
+    print(f"Alert: {status.rebalancing_alert}")
+    if status.rebalancing_suggestion:
+        print(f"Suggestion:\n{status.rebalancing_suggestion}")

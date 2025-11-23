@@ -334,61 +334,87 @@ with tab1:
         
         st.markdown("### 💼 Alocação de Capital")
         
-        st.markdown("Configure os targets de alocação de capital entre LPs e Hyperliquid:")
+        st.markdown("🎯 **Zona Ideal de Alocação de Capital (Faixa 70-90%)**")
+        st.markdown("""
+        **Nova Lógica:**
+        - 🟢 **ZONA IDEAL**: 70-90% em LPs (balanço entre rentabilidade e segurança)
+        - 🔴 **RISCO ALTO**: >90% em LPs (risco de liquidação)
+        - 🟡 **RISCO MÉDIO**: <70% em LPs (perda de rentabilidade)
+        """)
         
-        col_lp, col_hl = st.columns(2)
+        st.markdown("---")
         
-        with col_lp:
-            target_lp_pct = st.slider(
-                "Target LPs (%)",
+        col_min, col_target, col_max = st.columns(3)
+        
+        with col_min:
+            lp_min_ideal = st.slider(
+                "LPs Mínimo Ideal (%)",
                 min_value=50.0,
+                max_value=80.0,
+                value=existing_config.get("lp_min_ideal", 70.0) if existing_config else 70.0,
+                step=1.0,
+                help="Mínimo de LPs para manter rentabilidade adequada",
+                key="config_lp_min_ideal"
+            )
+        
+        with col_target:
+            lp_target = st.slider(
+                "LPs Target (Centro) (%)",
+                min_value=60.0,
+                max_value=90.0,
+                value=existing_config.get("lp_target", 80.0) if existing_config else 80.0,
+                step=1.0,
+                help="Target ideal no centro da faixa",
+                key="config_lp_target"
+            )
+        
+        with col_max:
+            lp_max_ideal = st.slider(
+                "LPs Máximo Ideal (%)",
+                min_value=80.0,
                 max_value=95.0,
-                value=existing_config.get("target_lp_pct", 85.0) if existing_config else 85.0,
+                value=existing_config.get("lp_max_ideal", 90.0) if existing_config else 90.0,
                 step=1.0,
-                help="Percentual target de capital em posições LP (Uniswap, Revert, etc.)",
-                key="config_target_lp_pct"
+                help="Máximo de LPs antes de risco de liquidação",
+                key="config_lp_max_ideal"
             )
         
-        with col_hl:
-            target_hyperliquid_pct = st.slider(
-                "Target Hyperliquid (%)",
-                min_value=5.0,
-                max_value=50.0,
-                value=existing_config.get("target_hyperliquid_pct", 15.0) if existing_config else 15.0,
-                step=1.0,
-                help="Percentual target de capital na Hyperliquid (margem operacional)",
-                key="config_target_hyperliquid_pct"
-            )
+        # Validate range
+        if not (lp_min_ideal < lp_target < lp_max_ideal):
+            st.error("⚠️ Erro: Mínimo < Target < Máximo")
         
-        # Validate that targets sum to 100%
-        total_target = target_lp_pct + target_hyperliquid_pct
-        if abs(total_target - 100.0) > 0.1:
-            st.warning(f"⚠️ Soma dos targets: {total_target:.1f}% (deveria ser 100%)")
+        # Remove old rebalancing_threshold_pct slider (not needed anymore)
+        # Keep it for backward compatibility in config
+        rebalancing_threshold_pct = 40.0  # Not used in new logic
         
-        rebalancing_threshold_pct = st.slider(
-            "Threshold de Alerta (%)",
-            min_value=10.0,
-            max_value=100.0,
-            value=existing_config.get("rebalancing_threshold_pct", 40.0) if existing_config else 40.0,
-            step=5.0,
-            help="Percentual de desvio do target que aciona alerta de rebalanceamento",
-            key="config_rebalancing_threshold_pct"
-        )
-        
-        with st.expander("ℹ️ Como funciona o threshold"):
+        with st.expander("ℹ️ Explicação da Faixa Ideal"):
             st.markdown(f"""
-            O threshold define quando um alerta de rebalanceamento é acionado.
+            **Como Funciona a Nova Lógica:**
             
-            **Exemplo com threshold de {rebalancing_threshold_pct:.0f}%:**
+            **Faixa Ideal Configurada:** {lp_min_ideal:.0f}% - {lp_max_ideal:.0f}% em LPs
+            **Target (Centro):** {lp_target:.0f}%
             
-            - Target LPs: {target_lp_pct:.0f}%
-            - Threshold: {rebalancing_threshold_pct:.0f}% de {target_lp_pct:.0f}% = {target_lp_pct * rebalancing_threshold_pct / 100:.1f}%
-            - Alerta se LPs < {target_lp_pct - (target_lp_pct * rebalancing_threshold_pct / 100):.1f}% ou > {target_lp_pct + (target_lp_pct * rebalancing_threshold_pct / 100):.1f}%
+            **Níveis de Risco:**
+            
+            1. 🟢 **ZONA IDEAL** ({lp_min_ideal:.0f}-{lp_max_ideal:.0f}%)
+               - Balanço perfeito entre rentabilidade e segurança
+               - Sistema opera com eficiência máxima
+               - Margem adequada na Hyperliquid
+            
+            2. 🔴 **RISCO ALTO - Liquidação** (>{lp_max_ideal:.0f}%)
+               - Margem operacional insuficiente
+               - Risco de liquidação em movimentos rápidos
+               - **REBALANCEAMENTO IMEDIATO NECESSÁRIO**
+            
+            3. 🟡 **RISCO MÉDIO - Rentabilidade** (<{lp_min_ideal:.0f}%)
+               - Capital subutilizado em LPs
+               - Perda de potencial de rentabilidade
+               - **REBALANCEAMENTO RECOMENDADO**
             
             **Recomendações:**
-            - **10-20%**: Alerta frequente, rebalanceamento rigoroso
-            - **30-50%**: Alerta moderado (recomendado)
-            - **60%+**: Alerta raro, apenas desvios grandes
+            - Mínimo: 70% (garante rentabilidade)
+            - Target: 80% (balanço ideal)
+            - Máximo: 90% (margem de segurança)
             """)
         
         st.markdown("### 📊 Status")
@@ -416,9 +442,9 @@ with tab1:
                     auto_sync_enabled,
                     auto_sync_interval,
                     auto_execute_enabled,
-                    target_lp_pct,
-                    target_hyperliquid_pct,
-                    rebalancing_threshold_pct
+                    lp_min_ideal,
+                    lp_target,
+                    lp_max_ideal
                 )
                 st.success("✅ Configuração salva com sucesso! Vá para a aba Dashboard.")
                 st.balloons()
@@ -769,10 +795,10 @@ with tab2:
         from extract_protocol_balances import extract_protocol_balances, get_wallet_balance
         import plotly.graph_objects as go
         
-        # Get capital allocation settings
-        target_lp_pct = config.get("target_lp_pct", 85.0)
-        target_hyperliquid_pct = config.get("target_hyperliquid_pct", 15.0)
-        rebalancing_threshold_pct = config.get("rebalancing_threshold_pct", 40.0)
+        # Get capital allocation settings (new range-based logic)
+        lp_min_ideal = config.get("lp_min_ideal", 70.0)
+        lp_target = config.get("lp_target", 80.0)
+        lp_max_ideal = config.get("lp_max_ideal", 90.0)
         
         # Extract protocol balances
         protocol_balances = extract_protocol_balances(portfolio)
@@ -780,9 +806,9 @@ with tab2:
         
         # Analyze allocation
         cap_analyzer = CapitalAllocationAnalyzer(
-            target_lp_pct=target_lp_pct,
-            target_hyperliquid_pct=target_hyperliquid_pct,
-            deviation_threshold_pct=rebalancing_threshold_pct
+            lp_min_ideal=lp_min_ideal,
+            lp_max_ideal=lp_max_ideal,
+            lp_target=lp_target
         )
         
         allocation_status = cap_analyzer.analyze_allocation(
@@ -800,21 +826,34 @@ with tab2:
             )
         
         with col2:
-            lp_delta = allocation_status.lp_percentage - allocation_status.target_lp_percentage
+            # Determine color based on risk level
+            if allocation_status.lp_percentage >= lp_min_ideal and allocation_status.lp_percentage <= lp_max_ideal:
+                lp_color = "normal"  # Green - in ideal range
+            else:
+                lp_color = "inverse"  # Red - out of range
+            
             st.metric(
-                "🏦 LPs",
+                "🏬 LPs",
                 f"${allocation_status.lp_total:,.2f}",
-                delta=f"{allocation_status.lp_percentage:.1f}% (target: {allocation_status.target_lp_percentage:.0f}%)",
-                delta_color="normal" if abs(lp_delta) < 10 else "off"
+                delta=f"{allocation_status.lp_percentage:.1f}% (ideal: {lp_min_ideal:.0f}-{lp_max_ideal:.0f}%)",
+                delta_color=lp_color
             )
         
         with col3:
-            hl_delta = allocation_status.hyperliquid_percentage - allocation_status.target_hyperliquid_percentage
+            # Hyperliquid is inverse of LP
+            hyperliquid_min_ideal = 100 - lp_max_ideal
+            hyperliquid_max_ideal = 100 - lp_min_ideal
+            
+            if allocation_status.hyperliquid_percentage >= hyperliquid_min_ideal and allocation_status.hyperliquid_percentage <= hyperliquid_max_ideal:
+                hl_color = "normal"
+            else:
+                hl_color = "inverse"
+            
             st.metric(
                 "⚡ Hyperliquid",
                 f"${allocation_status.hyperliquid_total:,.2f}",
-                delta=f"{allocation_status.hyperliquid_percentage:.1f}% (target: {allocation_status.target_hyperliquid_percentage:.0f}%)",
-                delta_color="normal" if abs(hl_delta) < 5 else "off"
+                delta=f"{allocation_status.hyperliquid_percentage:.1f}% (ideal: {hyperliquid_min_ideal:.0f}-{hyperliquid_max_ideal:.0f}%)",
+                delta_color=hl_color
             )
         
         with col4:
@@ -824,14 +863,28 @@ with tab2:
                 delta=f"{allocation_status.wallet_percentage:.1f}%"
             )
         
+        # Display risk level and rebalancing alert
+        st.markdown("---")
+        st.markdown("#### 🎯 Status de Alocação")
+        
+        # Show risk description
+        st.info(allocation_status.risk_description)
+        
         # Display rebalancing alert if needed
         if allocation_status.needs_rebalancing:
-            st.error(f"🚨 {allocation_status.rebalancing_alert}")
+            # Use different alert types based on risk level
+            from capital_allocation_analyzer import RiskLevel
+            
+            if allocation_status.risk_level == RiskLevel.HIGH_LIQUIDATION:
+                st.error(allocation_status.rebalancing_alert)
+            else:  # MEDIUM_PROFITABILITY
+                st.warning(allocation_status.rebalancing_alert)
+            
             if allocation_status.rebalancing_suggestion:
-                st.warning(f"💡 **Sugestão de Rebalanceamento:**\n\n{allocation_status.rebalancing_suggestion}")
+                st.info(f"💡 **Sugestão de Rebalanceamento:**\n\n{allocation_status.rebalancing_suggestion}")
                 st.info("⚠️ **ATENÇÃO:** Esta é uma operação manual. Transfira fundos entre protocolos conforme sugerido.")
         else:
-            st.success(f"✅ {allocation_status.rebalancing_alert}")
+            st.success(allocation_status.rebalancing_alert)
         
         # Create two columns: pie chart and protocol breakdown
         col_chart, col_table = st.columns([1, 1])
@@ -924,12 +977,14 @@ with tab2:
             - **Threshold de Alerta**: {rebalancing_threshold_pct:.0f}% de desvio
               - Alerta quando alocação desvia mais que {rebalancing_threshold_pct:.0f}% do target
               
-            **Riscos:**
-            - 🔴 **LPs < 70%**: Perda de efetividade operacional
-            - 🔴 **Hyperliquid < 10%**: Risco de liquidação em alta rápida do mercado
+            
+            - **Mínimo {lp_min_ideal:.0f}%**: Garante rentabilidade adequada
+            - **Target {lp_target:.0f}%**: Balanço ideal entre rentabilidade e segurança
+            - **Máximo {lp_max_ideal:.0f}%**: Margem de segurança antes de risco de liquidação
             
             **Configuração:**
-            - Ajuste os targets e threshold na aba "⚙️ Configuração"
+            - Ajuste a faixa ideal na aba "⚙️ Configuração"
+            - Valores recomendados: Mínimo 70%, Target 80%, Máximo 90%
             """)
         
         st.markdown("---")
