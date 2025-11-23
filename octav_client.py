@@ -1,7 +1,6 @@
 """
-Octav.fi API Client V2
-Fetches portfolio data including LP positions and Hyperliquid perpetual positions
-Fixed to work with actual API response structure
+Octav.fi API Client V3
+UNIVERSAL PROTOCOL SUPPORT - Extracts LP positions from ALL protocols
 """
 
 import requests
@@ -18,7 +17,7 @@ class LPPosition:
     price: float
     value: float
     chain: str
-    position_type: str  # 'supply' or 'reward'
+    position_type: str  # 'supply', 'reward', 'asset', etc.
 
 
 @dataclass
@@ -90,13 +89,15 @@ class OctavClient:
     
     def extract_lp_positions(self, portfolio_data: Dict) -> List[LPPosition]:
         """
-        Extract LP positions from portfolio data
+        Extract LP positions from ALL protocols (universal extractor)
+        
+        Supports: Uniswap, Aerodrome, Revert Finance, Curve, Sushiswap, etc.
         
         Args:
             portfolio_data: Portfolio data from API
             
         Returns:
-            List of LP positions
+            List of LP positions from all protocols
         """
         lp_positions = []
         
@@ -106,45 +107,115 @@ class OctavClient:
         # Get assetByProtocols
         assets_by_protocol = portfolio_data.get("assetByProtocols", {})
         
-        # Look for Revert Finance
-        revert_data = assets_by_protocol.get("revert", {})
-        if revert_data:
-            chains = revert_data.get("chains", {})
+        # Skip these protocols (not LP protocols)
+        skip_protocols = ["wallet", "hyperliquid"]
+        
+        # Iterate through ALL protocols
+        for protocol_key, protocol_data in assets_by_protocol.items():
+            # Skip non-LP protocols
+            if protocol_key.lower() in skip_protocols:
+                continue
+            
+            # Get protocol display name
+            protocol_name = protocol_key.replace("_", " ").title()
+            
+            # Get chains
+            chains = protocol_data.get("chains", {})
+            
             for chain_key, chain_data in chains.items():
+                # Get protocol positions
                 protocol_positions = chain_data.get("protocolPositions", {})
-                for proto_key, proto_data in protocol_positions.items():
-                    # protocolPositions contains an array of positions
-                    positions_array = proto_data.get("protocolPositions", [])
+                
+                # Iterate through position types (LIQUIDITYPOOL, LENDING, etc.)
+                for position_type_key, position_type_data in protocol_positions.items():
+                    # Get protocol positions array
+                    positions_array = position_type_data.get("protocolPositions", [])
+                    
                     for position_item in positions_array:
-                        # Extract supply assets
+                        # Extract from multiple possible fields
+                        
+                        # 1. supplyAssets (Revert Finance style)
                         supply_assets = position_item.get("supplyAssets", [])
                         for asset in supply_assets:
-                            position = LPPosition(
-                                protocol="Revert Finance",
-                                token_symbol=asset.get("symbol", ""),
-                                balance=float(asset.get("balance", 0)),
-                                price=float(asset.get("price", 0)),
-                                value=float(asset.get("value", 0)),
-                                chain=chain_key,
-                                position_type="supply"
+                            position = self._create_lp_position(
+                                protocol_name, asset, chain_key, "supply"
                             )
-                            lp_positions.append(position)
+                            if position:
+                                lp_positions.append(position)
                         
-                        # Extract reward assets
+                        # 2. rewardAssets (Revert Finance style)
                         reward_assets = position_item.get("rewardAssets", [])
                         for asset in reward_assets:
-                            position = LPPosition(
-                                protocol="Revert Finance",
-                                token_symbol=asset.get("symbol", ""),
-                                balance=float(asset.get("balance", 0)),
-                                price=float(asset.get("price", 0)),
-                                value=float(asset.get("value", 0)),
-                                chain=chain_key,
-                                position_type="reward"
+                            position = self._create_lp_position(
+                                protocol_name, asset, chain_key, "reward"
                             )
-                            lp_positions.append(position)
+                            if position:
+                                lp_positions.append(position)
+                        
+                        # 3. assets (Uniswap style)
+                        assets = position_item.get("assets", [])
+                        for asset in assets:
+                            position = self._create_lp_position(
+                                protocol_name, asset, chain_key, "asset"
+                            )
+                            if position:
+                                lp_positions.append(position)
+                        
+                        # 4. dexAssets (some protocols)
+                        dex_assets = position_item.get("dexAssets", [])
+                        for asset in dex_assets:
+                            position = self._create_lp_position(
+                                protocol_name, asset, chain_key, "dex"
+                            )
+                            if position:
+                                lp_positions.append(position)
         
         return lp_positions
+    
+    def _create_lp_position(
+        self, 
+        protocol: str, 
+        asset: Dict, 
+        chain: str, 
+        position_type: str
+    ) -> LPPosition:
+        """
+        Create LPPosition from asset data
+        
+        Args:
+            protocol: Protocol name
+            asset: Asset dictionary
+            chain: Chain key
+            position_type: Type of position
+            
+        Returns:
+            LPPosition or None if invalid
+        """
+        try:
+            balance = float(asset.get("balance", 0))
+            price = float(asset.get("price", 0))
+            value = float(asset.get("value", 0))
+            symbol = asset.get("symbol", "")
+            
+            # Skip zero balances and values
+            if balance == 0 and value == 0:
+                return None
+            
+            # Skip if no symbol
+            if not symbol:
+                return None
+            
+            return LPPosition(
+                protocol=protocol,
+                token_symbol=symbol,
+                balance=balance,
+                price=price,
+                value=value,
+                chain=chain,
+                position_type=position_type
+            )
+        except (ValueError, TypeError):
+            return None
     
     def extract_perp_positions(self, portfolio_data: Dict) -> List[PerpPosition]:
         """
@@ -199,75 +270,70 @@ class OctavClient:
         
         return perp_positions
     
-    def get_lp_token_balances(self, wallet_address: str) -> Dict[str, float]:
-        """
-        Get aggregated token balances from LP positions
-        
-        Args:
-            wallet_address: Wallet address
-            
-        Returns:
-            Dictionary mapping token symbol to total balance
-        """
-        portfolio = self.get_portfolio(wallet_address)
-        lp_positions = self.extract_lp_positions(portfolio)
-        
-        # Aggregate by token symbol
-        token_balances = {}
-        for pos in lp_positions:
-            symbol = self.normalize_symbol(pos.token_symbol)
-            if symbol in token_balances:
-                token_balances[symbol] += pos.balance
-            else:
-                token_balances[symbol] = pos.balance
-        
-        return token_balances
-    
-    def get_short_balances(self, wallet_address: str) -> Dict[str, float]:
-        """
-        Get short position balances from Hyperliquid
-        
-        Args:
-            wallet_address: Wallet address
-            
-        Returns:
-            Dictionary mapping token symbol to short size (absolute value)
-        """
-        portfolio = self.get_portfolio(wallet_address)
-        perp_positions = self.extract_perp_positions(portfolio)
-        
-        # Aggregate short positions (negative size)
-        short_balances = {}
-        for pos in perp_positions:
-            if pos.size < 0:  # Short position
-                symbol = self.normalize_symbol(pos.symbol)
-                abs_size = abs(pos.size)
-                if symbol in short_balances:
-                    short_balances[symbol] += abs_size
-                else:
-                    short_balances[symbol] = abs_size
-        
-        return short_balances
-    
     @staticmethod
     def normalize_symbol(symbol: str) -> str:
         """
-        Normalize token symbols for comparison
+        Normalize token symbol for comparison
         
         Args:
-            symbol: Token symbol
+            symbol: Token symbol (e.g., 'WBTC', 'weth', 'BTC')
             
         Returns:
-            Normalized symbol
+            Normalized symbol (e.g., 'BTC', 'ETH')
         """
         symbol = symbol.upper()
         
-        # Map wrapped tokens to base tokens
-        mapping = {
-            'WETH': 'ETH',
-            'WBTC': 'BTC',
-            'WMATIC': 'MATIC',
-            'WAVAX': 'AVAX'
-        }
+        # Remove 'W' prefix for wrapped tokens
+        if symbol.startswith('W') and len(symbol) > 1:
+            return symbol[1:]  # WBTC -> BTC, WETH -> ETH
         
-        return mapping.get(symbol, symbol)
+        return symbol
+
+
+# Example usage and testing
+if __name__ == "__main__":
+    import json
+    
+    # Test with real data
+    API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwczovL2hhc3VyYS5pby9qd3QvY2xhaW1zIjp7IngtaGFzdXJhLWRlZmF1bHQtcm9sZSI6InVzZXIiLCJ4LWhhc3VyYS1hbGxvd2VkLXJvbGVzIjpbInVzZXIiXSwieC1oYXN1cmEtdXNlci1pZCI6InNhbnJlbW8yNjE0MSJ9fQ.0eLf5m4kQPETnUaZbN6LFMoV8hxGwjrdZ598r9o61Yc"
+    WALLET = "0x85963d266B718006375feC16649eD18c954cf213"
+    
+    client = OctavClient(API_KEY)
+    portfolio = client.get_portfolio(WALLET)
+    
+    print("=" * 60)
+    print("TESTING UNIVERSAL LP EXTRACTOR")
+    print("=" * 60)
+    
+    lp_positions = client.extract_lp_positions(portfolio)
+    
+    print(f"\nFound {len(lp_positions)} LP positions across all protocols:\n")
+    
+    # Group by protocol
+    by_protocol = {}
+    for pos in lp_positions:
+        if pos.protocol not in by_protocol:
+            by_protocol[pos.protocol] = []
+        by_protocol[pos.protocol].append(pos)
+    
+    for protocol, positions in by_protocol.items():
+        total_value = sum(p.value for p in positions)
+        print(f"\n{protocol}: ${total_value:,.2f}")
+        for pos in positions:
+            print(f"  └─ {pos.token_symbol}: {pos.balance:.6f} @ ${pos.price:.2f} = ${pos.value:.2f} ({pos.position_type})")
+    
+    print("\n" + "=" * 60)
+    print("COMPARISON WITH OLD EXTRACTOR")
+    print("=" * 60)
+    
+    # Import old client
+    import sys
+    sys.path.insert(0, "/home/ubuntu/XCELFI_LP_HEDGE_V2")
+    from octav_client import OctavClient as OldClient
+    
+    old_client = OldClient(API_KEY)
+    old_positions = old_client.extract_lp_positions(portfolio)
+    
+    print(f"\nOld extractor: {len(old_positions)} positions (Revert only)")
+    print(f"New extractor: {len(lp_positions)} positions (All protocols)")
+    print(f"Improvement: +{len(lp_positions) - len(old_positions)} positions")
