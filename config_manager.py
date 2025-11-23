@@ -19,7 +19,7 @@ class ConfigManager:
         self.execution_history_file = self.config_dir / "execution_history.json"
         self.transactions_file = self.config_dir / "transactions.json"
     
-    def save_config(self, api_key, wallet_address, tolerance_pct=5.0, hyperliquid_private_key="", auto_sync_enabled=False, auto_sync_interval_hours=1, auto_execute_enabled=False):
+    def save_config(self, api_key, wallet_address, tolerance_pct=5.0, hyperliquid_private_key="", auto_sync_enabled=False, auto_sync_interval_hours=1, auto_execute_enabled=False, target_lp_pct=85.0, target_hyperliquid_pct=15.0, rebalancing_threshold_pct=40.0):
         """Save configuration to file"""
         config = {
             "api_key": api_key,
@@ -29,6 +29,9 @@ class ConfigManager:
             "auto_sync_enabled": auto_sync_enabled,
             "auto_sync_interval_hours": auto_sync_interval_hours,
             "auto_execute_enabled": auto_execute_enabled,
+            "target_lp_pct": target_lp_pct,
+            "target_hyperliquid_pct": target_hyperliquid_pct,
+            "rebalancing_threshold_pct": rebalancing_threshold_pct,
             "saved_at": datetime.now().isoformat()
         }
         

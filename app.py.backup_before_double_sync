@@ -80,16 +80,7 @@ def background_sync_worker():
                 
                 if api_key and wallet_address:
                     client = OctavClient(api_key)
-                    
-                    # First sync
                     portfolio = client.get_portfolio(wallet_address)
-                    
-                    if portfolio:
-                        # Wait 5 seconds for protocols to update (especially Revert Finance)
-                        time.sleep(5)
-                        
-                        # Second sync for validation
-                        portfolio = client.get_portfolio(wallet_address)
                     
                     if portfolio:
                         lp_positions = client.extract_lp_positions(portfolio)
@@ -332,65 +323,6 @@ with tab1:
         else:
             st.info("🔒 Execução manual - você controla quando executar")
         
-        st.markdown("### 💼 Alocação de Capital")
-        
-        st.markdown("Configure os targets de alocação de capital entre LPs e Hyperliquid:")
-        
-        col_lp, col_hl = st.columns(2)
-        
-        with col_lp:
-            target_lp_pct = st.slider(
-                "Target LPs (%)",
-                min_value=50.0,
-                max_value=95.0,
-                value=existing_config.get("target_lp_pct", 85.0) if existing_config else 85.0,
-                step=1.0,
-                help="Percentual target de capital em posições LP (Uniswap, Revert, etc.)",
-                key="config_target_lp_pct"
-            )
-        
-        with col_hl:
-            target_hyperliquid_pct = st.slider(
-                "Target Hyperliquid (%)",
-                min_value=5.0,
-                max_value=50.0,
-                value=existing_config.get("target_hyperliquid_pct", 15.0) if existing_config else 15.0,
-                step=1.0,
-                help="Percentual target de capital na Hyperliquid (margem operacional)",
-                key="config_target_hyperliquid_pct"
-            )
-        
-        # Validate that targets sum to 100%
-        total_target = target_lp_pct + target_hyperliquid_pct
-        if abs(total_target - 100.0) > 0.1:
-            st.warning(f"⚠️ Soma dos targets: {total_target:.1f}% (deveria ser 100%)")
-        
-        rebalancing_threshold_pct = st.slider(
-            "Threshold de Alerta (%)",
-            min_value=10.0,
-            max_value=100.0,
-            value=existing_config.get("rebalancing_threshold_pct", 40.0) if existing_config else 40.0,
-            step=5.0,
-            help="Percentual de desvio do target que aciona alerta de rebalanceamento",
-            key="config_rebalancing_threshold_pct"
-        )
-        
-        with st.expander("ℹ️ Como funciona o threshold"):
-            st.markdown(f"""
-            O threshold define quando um alerta de rebalanceamento é acionado.
-            
-            **Exemplo com threshold de {rebalancing_threshold_pct:.0f}%:**
-            
-            - Target LPs: {target_lp_pct:.0f}%
-            - Threshold: {rebalancing_threshold_pct:.0f}% de {target_lp_pct:.0f}% = {target_lp_pct * rebalancing_threshold_pct / 100:.1f}%
-            - Alerta se LPs < {target_lp_pct - (target_lp_pct * rebalancing_threshold_pct / 100):.1f}% ou > {target_lp_pct + (target_lp_pct * rebalancing_threshold_pct / 100):.1f}%
-            
-            **Recomendações:**
-            - **10-20%**: Alerta frequente, rebalanceamento rigoroso
-            - **30-50%**: Alerta moderado (recomendado)
-            - **60%+**: Alerta raro, apenas desvios grandes
-            """)
-        
         st.markdown("### 📊 Status")
         if existing_config:
             st.success("✅ Configuração salva")
@@ -415,10 +347,7 @@ with tab1:
                     hyperliquid_key,
                     auto_sync_enabled,
                     auto_sync_interval,
-                    auto_execute_enabled,
-                    target_lp_pct,
-                    target_hyperliquid_pct,
-                    rebalancing_threshold_pct
+                    auto_execute_enabled
                 )
                 st.success("✅ Configuração salva com sucesso! Vá para a aba Dashboard.")
                 st.balloons()
@@ -703,42 +632,22 @@ with tab2:
     
         # Initialize session state for data
         if 'portfolio_data' not in st.session_state or sync_now:
-            # Double sync with 5-second delay for protocol data validation
-            with st.spinner("🔄 Sincronizando dados do Octav.fi (1ª tentativa)..."):
+            with st.spinner("🔄 Sincronizando dados do Octav.fi..."):
                 try:
-                    # First sync
-                    data = load_portfolio_data()
-                    if not data:
-                        st.error("❌ Erro ao carregar dados na 1ª sincronização")
-                        st.stop()
-                    
-                    st.info("⏳ Aguardando 5 segundos para validação de todos os protocolos (especialmente Revert Finance)...")
-                    
-                except Exception as e:
-                    st.error(f"❌ Erro na 1ª sincronização: {str(e)}")
-                    st.stop()
-            
-            # Wait 5 seconds for protocols to update
-            time.sleep(5)
-            
-            # Second sync for validation
-            with st.spinner("🔄 Sincronizando dados do Octav.fi (2ª tentativa - validação)..."):
-                try:
-                    # Second sync to capture all protocols
                     data = load_portfolio_data()
                     if data:
                         st.session_state.portfolio_data = data
                         st.session_state.last_sync_time = datetime.now().isoformat()
                         if should_auto_sync:
-                            st.success("✅ Sincronização automática concluída com dupla validação!")
+                            st.success("✅ Sincronização automática concluída!")
                         else:
-                            st.success("✅ Dados sincronizados com sucesso! (Dupla validação realizada)")
+                            st.success("✅ Dados sincronizados com sucesso!")
                     else:
-                        st.error("❌ Erro ao carregar dados na 2ª sincronização")
-                        st.stop()
+                        st.error("❌ Erro ao carregar dados")
+                        st.stop()  # Stop immediately after sync failure
                 except Exception as e:
-                    st.error(f"❌ Erro na 2ª sincronização: {str(e)}")
-                    st.stop()
+                    st.error(f"❌ Erro: {str(e)}")
+                    st.stop()  # Stop immediately after exception
     
         # Check if data exists
         if 'portfolio_data' not in st.session_state:
@@ -759,179 +668,6 @@ with tab2:
         with col3:
             st.metric("📉 Posições Short", len([p for p in data['perp_positions'] if p.size < 0]))
     
-        st.markdown("---")
-        
-        # ==================== CAPITAL ALLOCATION SECTION ====================
-        st.subheader("💼 Alocação de Capital por Protocolo")
-        
-        # Import modules
-        from capital_allocation_analyzer import CapitalAllocationAnalyzer
-        from extract_protocol_balances import extract_protocol_balances, get_wallet_balance
-        import plotly.graph_objects as go
-        
-        # Get capital allocation settings
-        target_lp_pct = config.get("target_lp_pct", 85.0)
-        target_hyperliquid_pct = config.get("target_hyperliquid_pct", 15.0)
-        rebalancing_threshold_pct = config.get("rebalancing_threshold_pct", 40.0)
-        
-        # Extract protocol balances
-        protocol_balances = extract_protocol_balances(portfolio)
-        wallet_balance = get_wallet_balance(portfolio)
-        
-        # Analyze allocation
-        cap_analyzer = CapitalAllocationAnalyzer(
-            target_lp_pct=target_lp_pct,
-            target_hyperliquid_pct=target_hyperliquid_pct,
-            deviation_threshold_pct=rebalancing_threshold_pct
-        )
-        
-        allocation_status = cap_analyzer.analyze_allocation(
-            protocol_balances=protocol_balances,
-            wallet_balance=0.0  # Wallet is already included in protocol_balances
-        )
-        
-        # Display allocation metrics
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric(
-                "💰 Capital Total",
-                f"${allocation_status.total_capital:,.2f}"
-            )
-        
-        with col2:
-            lp_delta = allocation_status.lp_percentage - allocation_status.target_lp_percentage
-            st.metric(
-                "🏦 LPs",
-                f"${allocation_status.lp_total:,.2f}",
-                delta=f"{allocation_status.lp_percentage:.1f}% (target: {allocation_status.target_lp_percentage:.0f}%)",
-                delta_color="normal" if abs(lp_delta) < 10 else "off"
-            )
-        
-        with col3:
-            hl_delta = allocation_status.hyperliquid_percentage - allocation_status.target_hyperliquid_percentage
-            st.metric(
-                "⚡ Hyperliquid",
-                f"${allocation_status.hyperliquid_total:,.2f}",
-                delta=f"{allocation_status.hyperliquid_percentage:.1f}% (target: {allocation_status.target_hyperliquid_percentage:.0f}%)",
-                delta_color="normal" if abs(hl_delta) < 5 else "off"
-            )
-        
-        with col4:
-            st.metric(
-                "💵 Wallet (Idle)",
-                f"${allocation_status.wallet_total:,.2f}",
-                delta=f"{allocation_status.wallet_percentage:.1f}%"
-            )
-        
-        # Display rebalancing alert if needed
-        if allocation_status.needs_rebalancing:
-            st.error(f"🚨 {allocation_status.rebalancing_alert}")
-            if allocation_status.rebalancing_suggestion:
-                st.warning(f"💡 **Sugestão de Rebalanceamento:**\n\n{allocation_status.rebalancing_suggestion}")
-                st.info("⚠️ **ATENÇÃO:** Esta é uma operação manual. Transfira fundos entre protocolos conforme sugerido.")
-        else:
-            st.success(f"✅ {allocation_status.rebalancing_alert}")
-        
-        # Create two columns: pie chart and protocol breakdown
-        col_chart, col_table = st.columns([1, 1])
-        
-        with col_chart:
-            st.markdown("#### 📊 Distribuição de Capital")
-            
-            # Prepare data for pie chart
-            if allocation_status.protocol_balances:
-                labels = [pb.protocol_name for pb in allocation_status.protocol_balances]
-                values = [pb.usd_value for pb in allocation_status.protocol_balances]
-                percentages = [pb.percentage for pb in allocation_status.protocol_balances]
-                
-                # Color mapping
-                colors = []
-                for pb in allocation_status.protocol_balances:
-                    if "hyperliquid" in pb.protocol_name.lower():
-                        colors.append("#FF6B6B")  # Red for Hyperliquid
-                    elif "wallet" in pb.protocol_name.lower():
-                        colors.append("#95A5A6")  # Gray for wallet
-                    else:
-                        colors.append("#4ECDC4")  # Teal for LPs
-                
-                # Create pie chart
-                fig = go.Figure(data=[go.Pie(
-                    labels=labels,
-                    values=values,
-                    hole=0.4,
-                    marker=dict(colors=colors),
-                    textinfo='label+percent',
-                    textposition='outside',
-                    hovertemplate='<b>%{label}</b><br>$%{value:,.2f}<br>%{percent}<extra></extra>'
-                )])
-                
-                fig.update_layout(
-                    showlegend=True,
-                    height=400,
-                    margin=dict(t=20, b=20, l=20, r=20)
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("Sem dados de protocolo para exibir")
-        
-        with col_table:
-            st.markdown("#### 📋 Detalhamento por Protocolo")
-            
-            if allocation_status.protocol_balances:
-                # Create table data
-                table_data = []
-                for pb in allocation_status.protocol_balances:
-                    # Add emoji based on protocol type
-                    if "hyperliquid" in pb.protocol_name.lower():
-                        emoji = "⚡"
-                    elif "wallet" in pb.protocol_name.lower():
-                        emoji = "💵"
-                    elif "uniswap" in pb.protocol_name.lower():
-                        emoji = "🦄"
-                    elif "revert" in pb.protocol_name.lower():
-                        emoji = "🔄"
-                    else:
-                        emoji = "🏦"
-                    
-                    table_data.append({
-                        "Protocolo": f"{emoji} {pb.protocol_name}",
-                        "Valor USD": f"${pb.usd_value:,.2f}",
-                        "Percentual": f"{pb.percentage:.1f}%"
-                    })
-                
-                # Display as dataframe
-                import pandas as pd
-                df = pd.DataFrame(table_data)
-                st.dataframe(df, use_container_width=True, hide_index=True)
-            else:
-                st.info("Sem dados de protocolo para exibir")
-        
-        # Display target allocation info
-        with st.expander("ℹ️ Sobre a Alocação de Capital"):
-            st.markdown(f"""
-            **Estratégia de Alocação:**
-            
-            - **Target LPs**: {target_lp_pct:.0f}% do capital total
-              - Maximiza efetividade operacional
-              - Gera fees de LP
-              
-            - **Target Hyperliquid**: {target_hyperliquid_pct:.0f}% do capital total
-              - Mantém margem operacional para hedges
-              - Previne risco de liquidação em movimentos rápidos
-              
-            - **Threshold de Alerta**: {rebalancing_threshold_pct:.0f}% de desvio
-              - Alerta quando alocação desvia mais que {rebalancing_threshold_pct:.0f}% do target
-              
-            **Riscos:**
-            - 🔴 **LPs < 70%**: Perda de efetividade operacional
-            - 🔴 **Hyperliquid < 10%**: Risco de liquidação em alta rápida do mercado
-            
-            **Configuração:**
-            - Ajuste os targets e threshold na aba "⚙️ Configuração"
-            """)
-        
         st.markdown("---")
         
         # NAV Evolution Chart

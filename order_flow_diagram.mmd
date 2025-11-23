@@ -1,0 +1,52 @@
+flowchart TD
+    Start([Início: Executar Ordem]) --> Init[1. Inicializar Conexão]
+    Init --> LoadWallet[Carregar Wallet com Private Key]
+    LoadWallet --> CreateClients[Criar Exchange e Info clients]
+    
+    CreateClients --> GetMeta[2. Obter Metadados]
+    GetMeta --> FetchMeta[info.meta - szDecimals, maxLeverage]
+    FetchMeta --> FetchPrice[info.all_mids - Preços atuais]
+    
+    FetchPrice --> CalcSize[3. Calcular Tamanho sz]
+    CalcSize --> RawSize[raw_size = valor_usd / preço_atual]
+    RawSize --> RoundSize[order_size = round raw_size, szDecimals]
+    
+    RoundSize --> CheckMinValue{Valor >= $10 USD?}
+    CheckMinValue -->|Não| ErrorMinValue[❌ Erro: Valor mínimo não atingido]
+    CheckMinValue -->|Sim| CalcPrice[4. Calcular Preço Limite limit_px]
+    
+    CalcPrice --> ApplySlippage[Aplicar slippage 5%]
+    ApplySlippage --> ShortOrLong{SHORT ou LONG?}
+    ShortOrLong -->|SHORT| PriceDown[limit_px = preço * 0.95]
+    ShortOrLong -->|LONG| PriceUp[limit_px = preço * 1.05]
+    
+    PriceDown --> RoundPrice[Arredondar para 5 dígitos significativos]
+    PriceUp --> RoundPrice
+    
+    RoundPrice --> PrepareOrder[5. Preparar Ordem]
+    PrepareOrder --> SetParams[Definir parâmetros:<br/>name, is_buy, sz, limit_px,<br/>order_type, reduce_only]
+    
+    SetParams --> ExecuteOrder[exchange.order]
+    ExecuteOrder --> CheckStatus{Status == ok?}
+    
+    CheckStatus -->|Não| ErrorAPI[❌ Erro da API]
+    CheckStatus -->|Sim| CheckFilled{Ordem filled?}
+    
+    CheckFilled -->|Não| NotFilled[⚠️ Ordem não executada]
+    CheckFilled -->|Sim| Success[✅ Sucesso!<br/>Extrair oid, totalSz, avgPx]
+    
+    ErrorMinValue --> End([Fim])
+    ErrorAPI --> End
+    NotFilled --> End
+    Success --> End
+    
+    style Start fill:#e1f5e1
+    style End fill:#ffe1e1
+    style Success fill:#90EE90
+    style ErrorMinValue fill:#FFB6C1
+    style ErrorAPI fill:#FFB6C1
+    style NotFilled fill:#FFE4B5
+    style CheckMinValue fill:#87CEEB
+    style CheckStatus fill:#87CEEB
+    style CheckFilled fill:#87CEEB
+    style ShortOrLong fill:#DDA0DD
