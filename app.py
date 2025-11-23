@@ -1180,7 +1180,10 @@ with tab2:
             # First, get prices from LP positions (from Octav.fi)
             token_prices = {}
             for pos in data['lp_positions']:
-                symbol = client.normalize_symbol(pos.token_symbol)
+                # Normalize symbol (BTC, ETH, etc.)
+                symbol = pos.token_symbol.upper()
+                if symbol.startswith('W'):
+                    symbol = symbol[1:]  # WBTC -> BTC, WETH -> ETH
                 if pos.price > 0:
                     token_prices[symbol] = pos.price
             
