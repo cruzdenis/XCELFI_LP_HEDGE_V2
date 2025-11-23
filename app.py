@@ -95,8 +95,15 @@ def background_sync_worker():
                         lp_positions = client.extract_lp_positions(portfolio)
                         perp_positions = client.extract_perp_positions(portfolio)
                         
+                        # Filter LP positions by enabled protocols
+                        enabled_protocols = config.get("enabled_protocols", ["Revert", "Uniswap3", "Uniswap4", "Dhedge"])
+                        filtered_lp_positions = [
+                            pos for pos in lp_positions 
+                            if any(proto.lower() in pos.protocol.lower() for proto in enabled_protocols)
+                        ]
+                        
                         lp_balances = {}
-                        for pos in lp_positions:
+                        for pos in filtered_lp_positions:
                             symbol = client.normalize_symbol(pos.token_symbol)
                             lp_balances[symbol] = lp_balances.get(symbol, 0) + pos.balance
                         
@@ -332,6 +339,45 @@ with tab1:
         else:
             st.info("🔒 Execução manual - você controla quando executar")
         
+        st.markdown("### 🎯 Seleção de Protocolos")
+        st.markdown("Escolha quais protocolos incluir nos cálculos de hedge e alocação de capital.")
+        
+        # Get available protocols from last sync (if any)
+        available_protocols = ["Revert", "Uniswap3", "Uniswap4", "Dhedge", "Aerodrome", "Curve", "Sushiswap", "Balancer", "Velodrome"]
+        
+        # Load saved protocol preferences
+        enabled_protocols = existing_config.get("enabled_protocols", ["Revert", "Uniswap3", "Uniswap4", "Dhedge"]) if existing_config else ["Revert", "Uniswap3", "Uniswap4", "Dhedge"]
+        
+        # Multi-select for protocols
+        enabled_protocols = st.multiselect(
+            "Protocolos Habilitados",
+            options=available_protocols,
+            default=enabled_protocols,
+            help="Selecione os protocolos que deseja incluir nos cálculos. Protocolos não selecionados serão ignorados."
+        )
+        
+        st.caption(f"✅ {len(enabled_protocols)} protocolo(s) selecionado(s)")
+        
+        with st.expander("ℹ️ Sobre a Seleção de Protocolos"):
+            st.markdown("""
+            **Por que selecionar protocolos?**
+            
+            - **Excluir posições pequenas**: Ignore protocolos com valores insignificantes
+            - **Focar em protocolos principais**: Considere apenas LPs relevantes
+            - **Testes**: Desabilite temporariamente um protocolo para análise
+            
+            **Impacto:**
+            - Cálculos de hedge consideram apenas protocolos selecionados
+            - Alocação de capital filtra por protocolos habilitados
+            - Dashboard mostra todos, mas destaca os selecionados
+            
+            **Recomendação:**
+            - Mantenha todos os protocolos com valor significativo habilitados
+            - Desabilite apenas protocolos com dust/valores mínimos
+            """)
+        
+        st.markdown("---")
+        
         st.markdown("### 💼 Alocação de Capital")
         
         st.markdown("🎯 **Zona Ideal de Alocação de Capital (Faixa 70-90%)**")
@@ -444,7 +490,8 @@ with tab1:
                     auto_execute_enabled,
                     lp_min_ideal,
                     lp_target,
-                    lp_max_ideal
+                    lp_max_ideal,
+                    enabled_protocols
                 )
                 st.success("✅ Configuração salva com sucesso! Vá para a aba Dashboard.")
                 st.balloons()
@@ -707,9 +754,16 @@ with tab2:
             lp_positions = client.extract_lp_positions(portfolio)
             perp_positions = client.extract_perp_positions(portfolio)
         
-            # Aggregate balances
+            # Filter LP positions by enabled protocols
+            enabled_protocols = config.get("enabled_protocols", ["Revert", "Uniswap3", "Uniswap4", "Dhedge"])
+            filtered_lp_positions = [
+                pos for pos in lp_positions 
+                if any(proto.lower() in pos.protocol.lower() for proto in enabled_protocols)
+            ]
+            
+            # Aggregate balances (using filtered positions)
             lp_balances = {}
-            for pos in lp_positions:
+            for pos in filtered_lp_positions:
                 symbol = client.normalize_symbol(pos.token_symbol)
                 lp_balances[symbol] = lp_balances.get(symbol, 0) + pos.balance
         
@@ -721,10 +775,12 @@ with tab2:
         
             return {
                 'portfolio': portfolio,
-                'lp_positions': lp_positions,
+                'lp_positions': lp_positions,  # All positions (for display)
+                'lp_positions_filtered': filtered_lp_positions,  # Filtered positions (for calculations)
                 'perp_positions': perp_positions,
-                'lp_balances': lp_balances,
-                'short_balances': short_balances
+                'lp_balances': lp_balances,  # Based on filtered positions
+                'short_balances': short_balances,
+                'enabled_protocols': enabled_protocols
             }
     
         # Initialize session state for data
@@ -1439,14 +1495,35 @@ with tab2:
         if not lp_positions:
             st.info("ℹ️ Nenhuma posição LP encontrada")
         else:
+            # Get enabled protocols from config
+            enabled_protocols = data.get('enabled_protocols', ["Revert", "Uniswap3", "Uniswap4", "Dhedge"])
+            
+            # Header
+            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 0.5])
+            col1.write("**Protocolo**")
+            col2.write("**Token**")
+            col3.write("**Quantidade**")
+            col4.write("**Valor USD**")
+            col5.write("**Status**")
+            st.markdown("---")
+            
             # Display positions
             for pos in lp_positions:
+                # Check if protocol is enabled
+                is_enabled = any(proto.lower() in pos.protocol.lower() for proto in enabled_protocols)
+                
                 with st.container():
-                    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                    col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 0.5])
                     col1.write(f"**{pos.protocol}** ({pos.chain})")
                     col2.write(pos.token_symbol)
                     col3.write(f"{pos.balance:.6f}")
                     col4.write(f"${pos.value:.2f}")
+                    
+                    # Show enabled/disabled status
+                    if is_enabled:
+                        col5.write("✅")  # Enabled
+                    else:
+                        col5.write("❌")  # Disabled
             
             st.markdown("---")
             
