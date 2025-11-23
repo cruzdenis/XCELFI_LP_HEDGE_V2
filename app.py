@@ -242,7 +242,7 @@ st.markdown('<div class="main-header">🎯 XCELFI LP Hedge V3</div>', unsafe_all
 st.markdown('<div class="last-sync">Delta-Neutral LP Hedge Dashboard</div>', unsafe_allow_html=True)
 
 # Main tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["⚙️ Configuração", "📊 Dashboard", "🏬 Posições LP", "📜 Histórico", "📈 Execuções"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["⚙️ Configuração", "📊 Dashboard", "🏬 Posições LP", "📜 Histórico", "📈 Execuções", "🔐 Prova de Reservas"])
 
 # ==================== TAB 1: CONFIGURAÇÃO ====================
 with tab1:
@@ -1710,6 +1710,242 @@ with tab5:
                         st.info("🔄 Recarregue a página para atualizar a lista")
                     else:
                         st.error("❌ Erro ao excluir entrada")
+
+# ==================== TAB 6: PROVA DE RESERVAS ====================
+with tab6:
+    st.subheader("🔐 Prova de Reservas")
+    st.markdown("Demonstração transparente de todos os ativos e passivos do sistema.")
+    
+    if 'portfolio_data' not in st.session_state:
+        st.info("ℹ️ Sincronize os dados na aba **Dashboard** primeiro")
+    else:
+        data = st.session_state.portfolio_data
+        portfolio = data['portfolio']
+        
+        # Get networth
+        networth = float(portfolio.get("networth", "0"))
+        
+        st.markdown("---")
+        
+        # Summary metrics
+        st.markdown("### 📊 Resumo Geral")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        # Calculate total assets and liabilities
+        assets_by_protocol = portfolio.get("assetByProtocols", {})
+        
+        # ASSETS: LPs + Wallet + Hyperliquid equity
+        total_lp_value = 0
+        total_wallet_value = 0
+        total_hyperliquid_equity = 0
+        
+        # LPs (all protocols except wallet and hyperliquid)
+        for protocol_key, protocol_data in assets_by_protocol.items():
+            if protocol_key not in ["wallet", "hyperliquid"]:
+                protocol_value = float(protocol_data.get("value", 0))
+                total_lp_value += protocol_value
+        
+        # Wallet
+        wallet_data = assets_by_protocol.get("wallet", {})
+        total_wallet_value = float(wallet_data.get("value", 0))
+        
+        # Hyperliquid equity
+        hyperliquid_data = assets_by_protocol.get("hyperliquid", {})
+        total_hyperliquid_equity = float(hyperliquid_data.get("value", 0))
+        
+        # Total assets
+        total_assets = total_lp_value + total_wallet_value + total_hyperliquid_equity
+        
+        # LIABILITIES: Hyperliquid positions (negative value = liability)
+        total_liabilities = 0
+        perp_positions = data.get('perp_positions', [])
+        for pos in perp_positions:
+            if pos.size < 0:  # Short position
+                # Position value is already in USD
+                total_liabilities += abs(pos.notional_value)
+        
+        # Net equity
+        net_equity = total_assets - total_liabilities
+        
+        col1.metric("💰 Total de Ativos", f"${total_assets:,.2f}")
+        col2.metric("📉 Total de Passivos", f"${total_liabilities:,.2f}")
+        col3.metric("🟢 Patrimônio Líquido", f"${net_equity:,.2f}", 
+                    delta=f"{((net_equity/total_assets)*100 if total_assets > 0 else 0):.1f}% do total")
+        
+        st.markdown("---")
+        
+        # Assets breakdown
+        st.markdown("### 💰 Detalhamento de Ativos")
+        
+        # Prepare data for pie chart
+        asset_labels = []
+        asset_values = []
+        
+        if total_lp_value > 0:
+            asset_labels.append("🏬 LPs")
+            asset_values.append(total_lp_value)
+        
+        if total_wallet_value > 0:
+            asset_labels.append("👛 Wallet")
+            asset_values.append(total_wallet_value)
+        
+        if total_hyperliquid_equity > 0:
+            asset_labels.append("⚡ Hyperliquid (Equity)")
+            asset_values.append(total_hyperliquid_equity)
+        
+        # Pie chart for assets
+        if asset_values:
+            import plotly.graph_objects as go
+            
+            fig_assets = go.Figure(data=[go.Pie(
+                labels=asset_labels,
+                values=asset_values,
+                hole=0.4,
+                marker=dict(colors=['#00D9FF', '#FFB800', '#FF6B6B']),
+                textinfo='label+percent',
+                textposition='outside'
+            )])
+            
+            fig_assets.update_layout(
+                title="Distribuição de Ativos",
+                height=400,
+                showlegend=True
+            )
+            
+            col_chart1, col_table1 = st.columns([1, 1])
+            
+            with col_chart1:
+                st.plotly_chart(fig_assets, use_container_width=True)
+            
+            with col_table1:
+                st.markdown("#### 📋 Tabela de Ativos")
+                asset_data = []
+                for i, label in enumerate(asset_labels):
+                    pct = (asset_values[i] / total_assets * 100) if total_assets > 0 else 0
+                    asset_data.append({
+                        "Tipo": label,
+                        "Valor USD": f"${asset_values[i]:,.2f}",
+                        "Percentual": f"{pct:.2f}%"
+                    })
+                
+                import pandas as pd
+                df_assets = pd.DataFrame(asset_data)
+                st.dataframe(df_assets, use_container_width=True, hide_index=True)
+                
+                # Total row
+                st.markdown(f"**Total de Ativos:** ${total_assets:,.2f}")
+        
+        st.markdown("---")
+        
+        # Liabilities breakdown
+        st.markdown("### 📉 Detalhamento de Passivos")
+        
+        if total_liabilities > 0:
+            # Group liabilities by token
+            liabilities_by_token = {}
+            for pos in perp_positions:
+                if pos.size < 0:  # Short position
+                    token = pos.symbol
+                    value = abs(pos.notional_value)
+                    liabilities_by_token[token] = liabilities_by_token.get(token, 0) + value
+            
+            # Pie chart for liabilities
+            liability_labels = [f"🔻 {token} Short" for token in liabilities_by_token.keys()]
+            liability_values = list(liabilities_by_token.values())
+            
+            fig_liabilities = go.Figure(data=[go.Pie(
+                labels=liability_labels,
+                values=liability_values,
+                hole=0.4,
+                marker=dict(colors=['#FF6B6B', '#FF8E8E', '#FFB1B1']),
+                textinfo='label+percent',
+                textposition='outside'
+            )])
+            
+            fig_liabilities.update_layout(
+                title="Distribuição de Passivos (Posições Short)",
+                height=400,
+                showlegend=True
+            )
+            
+            col_chart2, col_table2 = st.columns([1, 1])
+            
+            with col_chart2:
+                st.plotly_chart(fig_liabilities, use_container_width=True)
+            
+            with col_table2:
+                st.markdown("#### 📋 Tabela de Passivos")
+                liability_data = []
+                for i, token in enumerate(liabilities_by_token.keys()):
+                    value = liability_values[i]
+                    pct = (value / total_liabilities * 100) if total_liabilities > 0 else 0
+                    liability_data.append({
+                        "Token": token,
+                        "Tipo": "Short Position",
+                        "Valor USD": f"${value:,.2f}",
+                        "Percentual": f"{pct:.2f}%"
+                    })
+                
+                df_liabilities = pd.DataFrame(liability_data)
+                st.dataframe(df_liabilities, use_container_width=True, hide_index=True)
+                
+                # Total row
+                st.markdown(f"**Total de Passivos:** ${total_liabilities:,.2f}")
+        else:
+            st.info("ℹ️ Nenhum passivo (posição short) encontrado")
+        
+        st.markdown("---")
+        
+        # Final summary
+        st.markdown("### 🟢 Balanço Final")
+        
+        col_final1, col_final2, col_final3 = st.columns(3)
+        
+        col_final1.metric("💰 Ativos", f"${total_assets:,.2f}")
+        col_final2.metric("📉 Passivos", f"${total_liabilities:,.2f}")
+        col_final3.metric("🟢 Patrimônio Líquido", f"${net_equity:,.2f}")
+        
+        # Verification
+        st.markdown("---")
+        st.markdown("### ✅ Verificação")
+        
+        # Check if net equity matches networth
+        networth_diff = abs(net_equity - networth)
+        
+        if networth_diff < 1:  # Allow $1 difference for rounding
+            st.success(f"✅ **Verificação OK**: Patrimônio Líquido calculado (${net_equity:,.2f}) corresponde ao Networth reportado (${networth:,.2f})")
+        else:
+            st.warning(f"⚠️ **Diferença detectada**: Patrimônio Líquido calculado (${net_equity:,.2f}) vs Networth reportado (${networth:,.2f}) | Diferença: ${networth_diff:,.2f}")
+        
+        # Explanation
+        with st.expander("ℹ️ Sobre a Prova de Reservas"):
+            st.markdown("""
+            **O que é Prova de Reservas?**
+            
+            Demonstração transparente de todos os ativos e passivos do sistema, permitindo verificar que:
+            
+            - **Ativos** = LPs + Wallet + Hyperliquid Equity
+            - **Passivos** = Posições Short (Hyperliquid)
+            - **Patrimônio Líquido** = Ativos - Passivos
+            
+            **Por que é importante?**
+            
+            - **Transparência**: Você vê exatamente onde está cada dólar
+            - **Verificação**: Confirma que os cálculos estão corretos
+            - **Confiança**: Prova que o sistema está balanceado
+            
+            **Como interpretar:**
+            
+            1. **Ativos**: Tudo que você possui (LPs, wallet, equity Hyperliquid)
+            2. **Passivos**: Suas obrigações (posições short)
+            3. **Patrimônio Líquido**: Seu valor real (ativos - passivos)
+            
+            **Verificação:**
+            
+            O sistema compara o Patrimônio Líquido calculado com o Networth reportado pelo Octav.fi.
+            Se os valores batem, significa que todos os ativos e passivos foram contabilizados corretamente.
+            """)
 
 # Footer
 st.markdown("---")
