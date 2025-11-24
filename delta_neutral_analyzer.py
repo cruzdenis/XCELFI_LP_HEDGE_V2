@@ -25,16 +25,14 @@ class DeltaNeutralSuggestion:
 class DeltaNeutralAnalyzer:
     """Analyzes positions and suggests adjustments for delta neutral strategy"""
     
-    def __init__(self, tolerance_pct: float = 5.0, hedge_value_threshold_pct: float = 10.0, total_capital: float = 0.0):
+    def __init__(self, hedge_value_threshold_pct: float = 10.0, total_capital: float = 0.0):
         """
         Initialize analyzer
         
         Args:
-            tolerance_pct: Tolerance percentage for considering positions balanced (default: 5%)
             hedge_value_threshold_pct: Minimum value (% of total capital) to require hedge action (default: 10%)
             total_capital: Total portfolio value in USD for value-based threshold calculation
         """
-        self.tolerance_pct = tolerance_pct
         self.hedge_value_threshold_pct = hedge_value_threshold_pct
         self.total_capital = total_capital
     
@@ -47,7 +45,7 @@ class DeltaNeutralAnalyzer:
         """
         Compare LP and short positions and generate suggestions
         
-        IMPORTANT: If ANY position exceeds tolerance, ALL positions will be adjusted.
+        IMPORTANT: If ANY position has a 'required' priority, ALL positions with a non-zero deviation will be adjusted.
         This ensures complete portfolio rebalancing when triggered.
         
         Args:
@@ -84,7 +82,7 @@ class DeltaNeutralAnalyzer:
                 diff_pct = 100.0 if short_bal > 0 else 0.0
             
             # Determine status and action
-            if diff_pct <= self.tolerance_pct:
+            if abs(difference) < 1e-9: # Use a small epsilon for float comparison
                 status = "balanced"
                 action = "none"
                 adjustment = 0.0
@@ -126,7 +124,7 @@ class DeltaNeutralAnalyzer:
             temp_suggestions.append(suggestion)
             
             # Check if this position triggers full rebalancing
-            if diff_pct > self.tolerance_pct:
+            if priority == "required":
                 trigger_activated = True
         
         # Second pass: if trigger activated, adjust ALL positions
@@ -157,8 +155,8 @@ class DeltaNeutralAnalyzer:
                 
                 suggestions.append(s)
         else:
-            # No trigger, return original suggestions
-            suggestions = temp_suggestions
+            # No trigger, return only suggestions with an action
+            suggestions = [s for s in temp_suggestions if s.action != "none"]
         
         return suggestions
     
@@ -197,7 +195,7 @@ class DeltaNeutralAnalyzer:
         # Balanced positions
         if balanced:
             lines.append("")
-            lines.append("✅ POSIÇÕES BALANCEADAS (dentro da tolerância de {}%)".format(self.tolerance_pct))
+            lines.append("✅ POSIÇÕES BALANCEADAS")
             lines.append("")
             for s in balanced:
                 lines.append(f"   {s.token}:")
