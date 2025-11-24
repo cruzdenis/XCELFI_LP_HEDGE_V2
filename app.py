@@ -245,13 +245,14 @@ def main():
     st.markdown("<p class=\"last-sync\">Delta-Neutral LP Hedge Dashboard</p>", unsafe_allow_html=True)
 
     # --- Tabs ---
-    tab_config, tab_dashboard, tab_lp_positions, tab_history, tab_executions, tab_proof_of_reserves = st.tabs([
+    tab_config, tab_dashboard, tab_lp_positions, tab_history, tab_executions, tab_proof_of_reserves, tab_balance_eq = st.tabs([
         "⚙️ Configuração", 
         "📊 Dashboard", 
         "🏬 Posições LP", 
         "📜 Histórico", 
         "📈 Execuções",
-        "🔐 Prova de Reservas"
+        "🔐 Prova de Reservas",
+        "⚖️ Equalização de Saldo"
     ])
 
     # --- Config Tab ---
@@ -920,6 +921,103 @@ def main():
                     st.caption("📌 Qualquer pessoa pode verificar as posições short diretamente no explorer da Hyperliquid.")
                 else:
                     st.info("⚠️ Endereço da carteira não configurado.")
+
+    # --- Balance Equalization Tab ---
+    with tab_balance_eq:
+        st.header("⚖️ Equalização de Saldo")
+        st.info("📊 Monitoramento do saldo da Hyperliquid em relação ao total das posições LP para prevenir risco de liquidação.")
+        
+        if 'portfolio_data' not in st.session_state:
+            st.warning("⚠️ Por favor, execute 'Analisar Hedge' na aba Dashboard primeiro.")
+        else:
+            data = st.session_state['portfolio_data']
+            
+            # Extract values from assetByProtocols
+            assets_by_protocol = data.get("assetByProtocols", {})
+            
+            # Calculate total LP value (all protocols except Hyperliquid and Wallet)
+            total_lp_value = 0
+            for protocol_key, protocol_data in assets_by_protocol.items():
+                if protocol_key.lower() not in ["hyperliquid", "wallet"]:
+                    total_lp_value += float(protocol_data.get("value", 0))
+            
+            # Get Hyperliquid balance
+            hyperliquid_data = assets_by_protocol.get("hyperliquid", {})
+            hyperliquid_balance = float(hyperliquid_data.get("value", 0))
+            
+            # Calculate percentage
+            if total_lp_value > 0:
+                balance_pct = (hyperliquid_balance / total_lp_value) * 100
+            else:
+                balance_pct = 0
+            
+            # Determine status and color
+            if balance_pct < 10:
+                status = "🔴 CRÍTICO - Risco Alto de Liquidação"
+                status_color = "red"
+                recommendation = "Deposite fundos na Hyperliquid IMEDIATAMENTE para evitar liquidação!"
+            elif balance_pct < 20:
+                status = "🟡 ATENÇÃO - Risco de Liquidação"
+                status_color = "orange"
+                recommendation = "Considere depositar mais fundos na Hyperliquid para aumentar a margem de segurança."
+            elif balance_pct <= 30:
+                status = "🟢 IDEAL - Saldo Adequado"
+                status_color = "green"
+                recommendation = "Saldo está dentro do range ideal. Continue monitorando."
+            else:
+                status = "🟡 EXCESSO - Capital Ocioso"
+                status_color = "orange"
+                recommendation = "Você tem capital ocioso na Hyperliquid. Considere realocar para LPs para aumentar retornos."
+            
+            # Display summary cards
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("🏬 Valor Total LP", f"${total_lp_value:,.2f}")
+            with col2:
+                st.metric("🔵 Saldo Hyperliquid", f"${hyperliquid_balance:,.2f}")
+            with col3:
+                st.metric("📊 Percentual", f"{balance_pct:.1f}%")
+            
+            st.markdown("---")
+            
+            # Display status alert
+            if status_color == "red":
+                st.error(f"**{status}**\n\n{recommendation}")
+            elif status_color == "orange":
+                st.warning(f"**{status}**\n\n{recommendation}")
+            else:
+                st.success(f"**{status}**\n\n{recommendation}")
+            
+            st.markdown("---")
+            
+            # Display ranges explanation
+            st.subheader("📊 Ranges de Saldo Recomendados")
+            
+            ranges_data = {
+                "Status": [
+                    "🔴 CRÍTICO",
+                    "🟡 ATENÇÃO",
+                    "🟢 IDEAL",
+                    "🟡 EXCESSO"
+                ],
+                "Range": [
+                    "< 10%",
+                    "10% - 20%",
+                    "20% - 30%",
+                    "> 30%"
+                ],
+                "Descrição": [
+                    "Risco alto de liquidação. Ação imediata necessária.",
+                    "Risco de liquidação. Aumente a margem de segurança.",
+                    "Saldo adequado para operações normais.",
+                    "Capital ocioso. Considere realocar para LPs."
+                ]
+            }
+            
+            df_ranges = pd.DataFrame(ranges_data)
+            st.table(df_ranges)
+            
+            st.caption("📌 **Nota**: Esses ranges são recomendações baseadas em boas práticas de gerenciamento de risco. Ajuste conforme sua tolerância ao risco.")
 
     # --- Footer ---
     st.markdown("---")
