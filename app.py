@@ -425,11 +425,17 @@ def main():
             
             hedge_value_threshold_pct = config.get("hedge_value_threshold_pct", 10.0)
             
+            # Extract token prices (normalize symbols to match lp_balances keys)
+            token_prices = {}
+            for pos in lp_positions:
+                symbol = OctavClient.normalize_symbol(pos.token_symbol)
+                token_prices[symbol] = pos.price
+            
             analyzer = DeltaNeutralAnalyzer(
                 hedge_value_threshold_pct=hedge_value_threshold_pct,
                 total_capital=networth
             )
-            suggestions = analyzer.compare_positions(lp_balances, short_balances, {p.token_symbol: p.price for p in lp_positions})
+            suggestions = analyzer.compare_positions(lp_balances, short_balances, token_prices)
             
             # --- Display Executive Summary Cards ---
             col1, col2, col3, col4 = st.columns(4)
@@ -473,12 +479,6 @@ def main():
                     st.metric("⚠️ Sobre-Hedge", len(over_hedged))
             
                 st.markdown("---")
-            
-                # Fetch current prices for USD conversion
-                token_prices = {}
-                for pos in lp_positions:
-                    symbol = OctavClient.normalize_symbol(pos.token_symbol)
-                    token_prices[symbol] = pos.price
 
                 for s in sorted(suggestions, key=lambda x: x.priority, reverse=True):
                     st.markdown(f"#### {s.token} - {s.status.upper().replace('_', ' ')}")
