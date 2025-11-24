@@ -593,9 +593,10 @@ def main():
                 df_lp = pd.DataFrame([{
                     "Protocolo": pos.protocol,
                     "Token": pos.token_symbol,
-                    "Quantidade": pos.balance,
-                    "Valor USD": f"${pos.balance * pos.price:,.2f}",
-                    "Range": f"{pos.min_range:.2f} - {pos.max_range:.2f}"
+                    "Quantidade": f"{pos.balance:.6f}",
+                    "Preço USD": f"${pos.price:,.2f}",
+                    "Valor USD": f"${pos.value:,.2f}",
+                    "Tipo": pos.position_type
                 } for pos in lp_positions])
                 st.dataframe(df_lp, use_container_width=True)
 
@@ -648,9 +649,9 @@ def main():
                     "Token": pos.symbol,
                     "Tamanho": pos.size,
                     "Valor USD": f"${pos.position_value:,.2f}",
-                    "P&L": f"${pos.unrealized_pnl:,.2f}",
+                    "P&L": f"${pos.open_pnl:,.2f}",
                     "Margem": f"${pos.margin_used:,.2f}",
-                    "Alavancagem": f"{pos.leverage:.2f}x"
+                    "Alavancagem": pos.leverage
                 } for pos in perp_positions])
                 st.dataframe(df_perp, use_container_width=True)
 
