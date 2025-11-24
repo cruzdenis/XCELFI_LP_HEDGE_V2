@@ -43,12 +43,27 @@ st.markdown("""
 # Initialize config manager
 config_mgr = ConfigManager()
 
+# Helper function to get active wallet config in compatible format
+def get_active_config():
+    """Get active wallet config in format compatible with old single-wallet code"""
+    wallet_config = config_mgr.get_active_wallet_config()
+    if not wallet_config:
+        return None
+    return wallet_config
+
+def save_active_config(config_data):
+    """Save active wallet config"""
+    active_wallet_id = config_mgr.get_active_wallet_id()
+    if not active_wallet_id:
+        return False
+    return config_mgr.save_wallet_config(active_wallet_id, config_data)
+
 # Background sync thread
 def background_sync_worker():
     """Background thread that syncs data periodically"""
     while True:
         try:
-            config = config_mgr.load_config()
+            config = get_active_config()
             
             if not config:
                 time.sleep(60)  # Wait 1 minute if no config
@@ -241,6 +256,71 @@ if 'keep_alive_started' not in st.session_state:
 def main():
     """Main Streamlit application"""
     
+    # --- Sidebar: Wallet Selector ---
+    with st.sidebar:
+        st.header("👛 Wallets")
+        
+        config = config_mgr.load_config()
+        wallets = config.get("wallets", {})
+        active_wallet_id = config.get("active_wallet")
+        
+        if not wallets:
+            st.warning("⚠️ Nenhuma wallet configurada. Adicione uma wallet abaixo.")
+        else:
+            # Wallet selector
+            wallet_options = {wid: f"{wdata.get('name', 'Unnamed')} ({wid[:8]}...)" for wid, wdata in wallets.items()}
+            
+            selected_wallet = st.selectbox(
+                "Wallet Ativa",
+                options=list(wallet_options.keys()),
+                format_func=lambda x: wallet_options[x],
+                index=list(wallet_options.keys()).index(active_wallet_id) if active_wallet_id in wallet_options else 0,
+                key="wallet_selector"
+            )
+            
+            # Update active wallet if changed
+            if selected_wallet != active_wallet_id:
+                config_mgr.set_active_wallet(selected_wallet)
+                st.rerun()
+            
+            st.success(f"✅ Wallet ativa: **{wallets[selected_wallet].get('name', 'Unnamed')}**")
+        
+        st.markdown("---")
+        
+        # Add new wallet
+        with st.expander("➕ Adicionar Nova Wallet"):
+            new_wallet_name = st.text_input("Nome da Wallet", key="new_wallet_name")
+            new_wallet_address = st.text_input("Endereço da Wallet", key="new_wallet_address")
+            
+            if st.button("➕ Adicionar", type="primary", key="add_wallet_btn"):
+                if new_wallet_name and new_wallet_address:
+                    success, message = config_mgr.add_wallet(new_wallet_address, new_wallet_name)
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+                else:
+                    st.error("⚠️ Por favor, preencha todos os campos.")
+        
+        # Remove wallet
+        if wallets and len(wallets) > 1:
+            with st.expander("🗑️ Remover Wallet"):
+                wallet_to_remove = st.selectbox(
+                    "Selecione a wallet para remover",
+                    options=list(wallet_options.keys()),
+                    format_func=lambda x: wallet_options[x],
+                    key="remove_wallet_selector"
+                )
+                
+                if st.button("🗑️ Remover", type="secondary", key="remove_wallet_btn"):
+                    success, message = config_mgr.remove_wallet(wallet_to_remove)
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+    
     st.markdown("<h1 class=\"main-header\">🎯 XCELFI LP Hedge V3</h1>", unsafe_allow_html=True)
     st.markdown("<p class=\"last-sync\">Delta-Neutral LP Hedge Dashboard</p>", unsafe_allow_html=True)
 
@@ -259,7 +339,7 @@ def main():
     with tab_config:
         st.header("⚙️ Configuração")
         
-        existing_config = config_mgr.load_config()
+        existing_config = get_active_config()
         
         col1, col2 = st.columns(2)
         
@@ -301,18 +381,23 @@ def main():
             )
 
         if st.button("Salvar Configuração"):
-            config = {
-                "api_key": api_key,
-                "wallet_address": wallet_address,
-                "hyperliquid_private_key": hyperliquid_private_key,
-                "auto_sync_enabled": auto_sync_enabled,
-                "auto_sync_interval_hours": auto_sync_interval_hours,
-                "auto_execute_enabled": auto_execute_enabled,
-                "hedge_value_threshold_pct": hedge_value_threshold_pct,
-                "enabled_protocols": enabled_protocols
-            }
-            config_mgr.save_config(config)
-            st.success("✅ Configuração salva com sucesso!")
+            # Get current wallet config and update it
+            wallet_config = get_active_config()
+            if not wallet_config:
+                st.error("⚠️ Nenhuma wallet ativa. Adicione uma wallet na sidebar.")
+            else:
+                wallet_config.update({
+                    "api_key": api_key,
+                    "wallet_address": wallet_address,
+                    "hyperliquid_private_key": hyperliquid_private_key,
+                    "auto_sync_enabled": auto_sync_enabled,
+                    "auto_sync_interval_hours": auto_sync_interval_hours,
+                    "auto_execute_enabled": auto_execute_enabled,
+                    "hedge_value_threshold_pct": hedge_value_threshold_pct,
+                    "enabled_protocols": enabled_protocols
+                })
+                save_active_config(wallet_config)
+                st.success("✅ Configuração salva com sucesso!")
         
         st.markdown("---")
         
@@ -371,7 +456,7 @@ def main():
             last_sync_dt = datetime.fromisoformat(last_sync)
             st.markdown(f"<p class=\"last-sync\">Última sincronização: {last_sync_dt.strftime('%Y-%m-%d %H:%M:%S')}</p>", unsafe_allow_html=True)
         
-        config = config_mgr.load_config()
+        config = get_active_config()
         if not config or not config.get("api_key") or not config.get("wallet_address"):
             st.warning("🚨 Por favor, configure sua API Key e endereço da carteira na aba 'Configuração'.")
             st.stop()
