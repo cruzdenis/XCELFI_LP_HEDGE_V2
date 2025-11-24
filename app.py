@@ -752,13 +752,21 @@ def main():
                 
                 st.markdown("---")
                 
-                # --- Protocol Distribution Pie Chart ---
-                st.subheader("🧀 Distribuição de Valor LP por Protocolo")
+                # --- Protocol Distribution Pie Chart (ALL PROTOCOLS) ---
+                st.subheader("🧀 Distribuição de Capital por Protocolo")
                 
-                # Aggregate by protocol
+                # Aggregate LP protocols
                 protocol_values = {}
                 for pos in lp_positions:
                     protocol_values[pos.protocol] = protocol_values.get(pos.protocol, 0) + pos.value
+                
+                # Add Hyperliquid value (from perp positions)
+                hyperliquid_total = sum(abs(pos.position_value) for pos in perp_positions)
+                if hyperliquid_total > 0:
+                    protocol_values["Hyperliquid"] = hyperliquid_total
+                
+                # Calculate total portfolio value
+                total_portfolio_value = sum(protocol_values.values())
                 
                 if protocol_values:
                     import plotly.express as px
@@ -773,7 +781,7 @@ def main():
                         df_protocols,
                         values="Valor USD",
                         names="Protocolo",
-                        title="Valor em USD por Protocolo (Posições LP)",
+                        title="Distribuição de Capital por Protocolo (Todos os Protocolos)",
                         hole=0.3,  # Donut chart
                         color_discrete_sequence=px.colors.qualitative.Pastel
                     )
@@ -786,7 +794,7 @@ def main():
                     
                     fig.update_layout(
                         showlegend=True,
-                        height=400
+                        height=450
                     )
                     
                     st.plotly_chart(fig, use_container_width=True)
@@ -794,15 +802,18 @@ def main():
                     # Show protocol values table
                     protocol_table = []
                     for protocol, value in sorted(protocol_values.items(), key=lambda x: x[1], reverse=True):
-                        pct = (value / total_lp_value * 100) if total_lp_value > 0 else 0
+                        pct = (value / total_portfolio_value * 100) if total_portfolio_value > 0 else 0
                         protocol_table.append({
                             "Protocolo": protocol,
                             "Valor USD": f"${value:,.2f}",
-                            "% do Total LP": f"{pct:.2f}%"
+                            "% do Total": f"{pct:.2f}%"
                         })
                     
                     df_protocol_table = pd.DataFrame(protocol_table)
                     st.dataframe(df_protocol_table, use_container_width=True)
+                    
+                    st.metric("💰 Valor Total do Portfólio", f"${total_portfolio_value:,.2f}")
+                    st.caption(f"📊 Inclui {len([p for p in protocol_values.keys() if p != 'Hyperliquid'])} protocolos LP + Hyperliquid")
                 
                 st.markdown("---")
                 
