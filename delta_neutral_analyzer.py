@@ -103,6 +103,9 @@ class DeltaNeutralAnalyzer:
             token_price = token_prices.get(token, 0.0)
             adjustment_value_usd = adjustment * token_price
             
+            # DEBUG
+            print(f"DEBUG ANALYZER - Token: {token}, Price: {token_price}, Adjustment: {adjustment}, Value USD: {adjustment_value_usd}")
+            
             # Determine priority based on value threshold
             priority = "optional"
             if self.total_capital > 0 and token_price > 0:
