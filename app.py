@@ -5,6 +5,7 @@ Delta-Neutral Analysis using Octav.fi API
 
 import streamlit as st
 import os
+import json
 import threading
 import time
 from datetime import datetime, timedelta
@@ -311,6 +312,54 @@ def main():
             }
             config_mgr.save_config(config)
             st.success("✅ Configuração salva com sucesso!")
+        
+        st.markdown("---")
+        
+        # --- Backup & Restore Section ---
+        st.markdown("### 💾 Backup & Restore")
+        st.info("📦 Faça backup de todas as suas configurações, histórico de sincronização, execuções e transações.")
+        
+        col_backup, col_restore = st.columns(2)
+        
+        with col_backup:
+            st.markdown("#### 📥 Criar Backup")
+            if st.button("💾 Baixar Backup Completo"):
+                backup_data = config_mgr.create_backup()
+                backup_json = json.dumps(backup_data, indent=2)
+                
+                # Create download button
+                st.download_button(
+                    label="⬇️ Download Backup JSON",
+                    data=backup_json,
+                    file_name=f"xcelfi_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json"
+                )
+                st.success(f"✅ Backup criado! Versão: {backup_data['backup_version']} | Timestamp: {backup_data['backup_timestamp']}")
+        
+        with col_restore:
+            st.markdown("#### 📤 Restaurar Backup")
+            uploaded_file = st.file_uploader("Escolha um arquivo de backup JSON", type=["json"], key="backup_restore")
+            
+            if uploaded_file is not None:
+                try:
+                    backup_data = json.load(uploaded_file)
+                    
+                    # Show backup info
+                    st.info(f"📦 Backup Version: {backup_data.get('backup_version', 'Unknown')}\n\n🕒 Timestamp: {backup_data.get('backup_timestamp', 'Unknown')}")
+                    
+                    if st.button("🔄 Restaurar Agora", type="primary"):
+                        success, message = config_mgr.restore_backup(backup_data)
+                        
+                        if success:
+                            st.success(f"✅ {message}")
+                            st.info("🔄 Recarregue a página para ver as mudanças.")
+                        else:
+                            st.error(f"❌ {message}")
+                
+                except json.JSONDecodeError:
+                    st.error("❌ Arquivo inválido! Por favor, envie um arquivo JSON válido.")
+                except Exception as e:
+                    st.error(f"❌ Erro ao processar backup: {str(e)}")
 
     # --- Dashboard Tab ---
     with tab_dashboard:

@@ -112,12 +112,14 @@ class ConfigManager:
         return True
     
     def create_backup(self):
-        """Create a backup of all data (config + history)"""
+        """Create a backup of all data (config + history + executions + transactions)"""
         backup_data = {
-            "backup_version": "1.0",
+            "backup_version": "2.0",
             "backup_timestamp": datetime.now().isoformat(),
             "config": self.load_config(),
-            "history": self.load_history()
+            "sync_history": self.load_history(),
+            "execution_history": self.load_execution_history(),
+            "transactions": self.load_transactions()
         }
         return backup_data
     
@@ -128,8 +130,8 @@ class ConfigManager:
             if not isinstance(backup_data, dict):
                 return False, "Invalid backup format"
             
-            if "config" not in backup_data or "history" not in backup_data:
-                return False, "Missing config or history in backup"
+            if "config" not in backup_data:
+                return False, "Missing config in backup"
             
             # Restore config
             config = backup_data.get("config")
@@ -137,11 +139,23 @@ class ConfigManager:
                 with open(self.config_file, 'w') as f:
                     json.dump(config, f, indent=2)
             
-            # Restore history
-            history = backup_data.get("history")
-            if history:
+            # Restore sync history (support both old 'history' and new 'sync_history' keys)
+            sync_history = backup_data.get("sync_history") or backup_data.get("history")
+            if sync_history:
                 with open(self.history_file, 'w') as f:
-                    json.dump(history, f, indent=2)
+                    json.dump(sync_history, f, indent=2)
+            
+            # Restore execution history
+            execution_history = backup_data.get("execution_history")
+            if execution_history:
+                with open(self.execution_history_file, 'w') as f:
+                    json.dump(execution_history, f, indent=2)
+            
+            # Restore transactions
+            transactions = backup_data.get("transactions")
+            if transactions:
+                with open(self.transactions_file, 'w') as f:
+                    json.dump(transactions, f, indent=2)
             
             return True, "Backup restored successfully"
             
