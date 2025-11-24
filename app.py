@@ -598,11 +598,32 @@ def main():
         with nav_tab2:
             st.subheader("💵 Gerenciar Aportes e Saques")
             
-            # Warning to quote before transaction
-            if current_nav and total_shares > 0:
-                st.success(f"✅ Cotação atual: **${nav_per_share:,.4f}** por share")
+            # Get last quotation automatically
+            last_nav_per_share = 1.0  # Default for first deposit
+            
+            if nav_snapshots and total_shares > 0:
+                # Calculate NAV per share from last snapshot
+                last_snapshot = nav_snapshots[-1]  # Already sorted by timestamp
+                last_nav = last_snapshot["nav"]
+                
+                # Calculate shares at that time
+                shares_at_last_snapshot = 0
+                for txn in share_transactions:
+                    if txn["timestamp"] <= last_snapshot["timestamp"]:
+                        if txn["type"] == "deposit":
+                            shares_at_last_snapshot += txn["shares"]
+                        elif txn["type"] == "withdrawal":
+                            shares_at_last_snapshot -= txn["shares"]
+                
+                if shares_at_last_snapshot > 0:
+                    last_nav_per_share = last_nav / shares_at_last_snapshot
+            
+            # Display last quotation info
+            if nav_snapshots:
+                last_snapshot_dt = datetime.fromisoformat(nav_snapshots[-1]["timestamp"])
+                st.info(f"📊 Última cotação: **${last_nav_per_share:,.4f}** por share (registrada em {last_snapshot_dt.strftime('%Y-%m-%d %H:%M')})")
             else:
-                st.warning("⚠️ **Cotize antes de inserir um novo aporte/saque!** Vá para a aba 'Cotizar Agora'.")
+                st.warning("⚠️ Nenhuma cotação registrada. Execute 'Analisar Hedge' no Dashboard para criar a primeira cotação.")
             
             # Add new transaction
             with st.expander("➕ Adicionar Aporte/Saque"):
@@ -612,13 +633,9 @@ def main():
                 txn_time = st.time_input("Hora")
                 txn_description = st.text_input("Descrição (opcional)")
                 
-                # Calculate shares based on current NAV per share
-                if nav_per_share > 0:
-                    calculated_shares = txn_amount / nav_per_share
-                    st.info(f"📋 Shares calculadas: **{calculated_shares:,.4f}** (baseado na cotação de ${nav_per_share:,.4f})")
-                else:
-                    calculated_shares = txn_amount  # 1:1 for first deposit
-                    st.info(f"📋 Shares calculadas: **{calculated_shares:,.4f}** (cotação inicial 1:1)")
+                # Calculate shares based on last NAV per share
+                calculated_shares = txn_amount / last_nav_per_share
+                st.info(f"📋 Shares calculadas: **{calculated_shares:,.4f}** (baseado na última cotação de ${last_nav_per_share:,.4f})")
                 
                 if st.button("➕ Adicionar Transação", type="primary"):
                     txn_datetime = datetime.combine(txn_date, txn_time).isoformat()
@@ -639,7 +656,7 @@ def main():
                             txn_type,
                             txn_amount,
                             calculated_shares,
-                            nav_per_share if nav_per_share > 0 else 1.0,
+                            last_nav_per_share,
                             txn_description,
                             txn_datetime
                         )
@@ -828,9 +845,29 @@ def main():
                 # Save data to session state
                 st.session_state.portfolio_data = portfolio
                 config_mgr.add_sync_history({"manual_sync": True})
+                
+                # Auto-quote: Create NAV snapshot automatically
+                nav_value = float(portfolio.get('networth', 0)) if portfolio.get('networth') else None
+                if nav_value:
+                    # Check if a recent snapshot exists (within last 5 minutes)
+                    existing_snapshots = config_mgr.load_nav_snapshots()
+                    now = datetime.now()
+                    recent_duplicate = any(
+                        abs(snap["nav"] - nav_value) < 0.01 and 
+                        abs((datetime.fromisoformat(snap["timestamp"]) - now).total_seconds()) < 300
+                        for snap in existing_snapshots
+                    )
+                    
+                    if not recent_duplicate:
+                        config_mgr.add_nav_snapshot(nav_value)
+                        st.success("📈 Cotação registrada automaticamente!")
 
         if 'portfolio_data' in st.session_state:
             data = st.session_state.portfolio_data
+            
+            # Display current NAV
+            current_nav_value = float(data.get('networth', 0)) if data.get('networth') else 0
+            st.metric("💰 NAV Atual", f"${current_nav_value:,.2f}")
             
             # --- Executive Summary ---
             networth = float(data.get("networth", "0"))
