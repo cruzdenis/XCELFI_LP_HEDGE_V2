@@ -116,13 +116,10 @@ def background_sync_worker():
                         networth = float(portfolio.get("networth", "0"))
                         hedge_value_threshold_pct = config.get("hedge_value_threshold_pct", 10.0)
                         
-                        # Extract token prices from LP positions (normalize symbols)
+                        # Extract token prices from LP positions (normalize symbols using same method as balances)
                         token_prices = {}
                         for pos in lp_positions:
-                            # Normalize symbol (WBTC -> BTC, WETH -> ETH)
-                            symbol = pos.token_symbol.upper()
-                            if symbol.startswith('W'):
-                                symbol = symbol[1:]  # Remove 'W' prefix
+                            symbol = client.normalize_symbol(pos.token_symbol)
                             token_prices[symbol] = pos.price
                         
                         analyzer = DeltaNeutralAnalyzer(
@@ -1376,14 +1373,17 @@ with tab2:
         networth = float(data['portfolio'].get("networth", "0"))
         hedge_value_threshold_pct = config.get("hedge_value_threshold_pct", 10.0)
         
-        # Extract token prices (normalize symbols)
+        # Extract token prices (normalize symbols using same method as balances)
+        from octav_client import OctavClient
         token_prices = {}
         for pos in data['lp_positions']:
-            # Normalize symbol (WBTC -> BTC, WETH -> ETH)
-            symbol = pos.token_symbol.upper()
-            if symbol.startswith('W'):
-                symbol = symbol[1:]  # Remove 'W' prefix
+            symbol = OctavClient.normalize_symbol(pos.token_symbol)
             token_prices[symbol] = pos.price
+        
+        # DEBUG: Show token prices
+        st.write("DEBUG - Token Prices:", token_prices)
+        st.write("DEBUG - LP Balances:", lp_balances)
+        st.write("DEBUG - Short Balances:", short_balances)
     
         analyzer = DeltaNeutralAnalyzer(
             tolerance_pct=tolerance_pct,
