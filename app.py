@@ -760,10 +760,10 @@ def main():
                 for pos in lp_positions:
                     protocol_values[pos.protocol] = protocol_values.get(pos.protocol, 0) + pos.value
                 
-                # Add Hyperliquid value (from perp positions)
-                hyperliquid_total = sum(abs(pos.position_value) for pos in perp_positions)
-                if hyperliquid_total > 0:
-                    protocol_values["Hyperliquid"] = hyperliquid_total
+                # Add Hyperliquid total balance (equity)
+                hyperliquid_balance = float(data.get("total_perp_value", "0"))
+                if hyperliquid_balance > 0:
+                    protocol_values["Hyperliquid"] = hyperliquid_balance
                 
                 # Calculate total portfolio value
                 total_portfolio_value = sum(protocol_values.values())
