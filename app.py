@@ -760,24 +760,13 @@ def main():
                 for pos in lp_positions:
                     protocol_values[pos.protocol] = protocol_values.get(pos.protocol, 0) + pos.value
                 
-                # Add Hyperliquid total balance (equity)
-                hyperliquid_balance = float(data.get("total_perp_value", "0"))
-                st.write(f"DEBUG - Hyperliquid Balance (total_perp_value): ${hyperliquid_balance:,.2f}")
-                st.write(f"DEBUG - Perp Positions Count: {len(perp_positions)}")
-                
-                # Debug: Show all top-level keys in portfolio data
-                st.write(f"DEBUG - Portfolio Data Keys: {list(data.keys())}")
-                
-                # Try to find Hyperliquid balance in protocols
-                if "protocols" in data:
-                    for protocol in data["protocols"]:
-                        if protocol.get("name", "").lower() == "hyperliquid":
-                            st.write(f"DEBUG - Found Hyperliquid protocol: {protocol}")
+                # Add Hyperliquid total balance (equity) from assetByProtocols
+                assets_by_protocol = data.get("assetByProtocols", {})
+                hyperliquid_data = assets_by_protocol.get("hyperliquid", {})
+                hyperliquid_balance = float(hyperliquid_data.get("value", 0))
                 
                 if hyperliquid_balance > 0:
                     protocol_values["Hyperliquid"] = hyperliquid_balance
-                else:
-                    st.warning("⚠️ Hyperliquid balance is 0 or not found in portfolio data.")
                 
                 # Calculate total portfolio value
                 total_portfolio_value = sum(protocol_values.values())
