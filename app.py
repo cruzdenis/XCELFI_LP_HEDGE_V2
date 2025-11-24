@@ -829,18 +829,117 @@ with tab2:
     
         data = st.session_state.portfolio_data
     
-        # Display net worth
+        # ==================== EXECUTIVE SUMMARY ====================
         portfolio = data['portfolio']
-        networth = portfolio.get("networth", "0")
-    
-        col1, col2, col3 = st.columns(3)
+        networth = float(portfolio.get("networth", "0"))
+        
+        # Main Networth - BIG and prominent
+        st.markdown("### 💰 Patrimônio Líquido Total")
+        col_net = st.columns([1])[0]
+        col_net.metric(
+            "",
+            f"${networth:,.2f}",
+            help="Valor total do portfolio (LPs + Hyperliquid + Wallet)"
+        )
+        
+        st.markdown("---")
+        
+        # Quick Status Cards
+        st.markdown("### 📊 Status Rápido")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        # Card 1: Capital Allocation Status
         with col1:
-            st.metric("💰 Net Worth", f"${float(networth):.2f}")
+            assets_by_protocol = portfolio.get("assetByProtocols", {})
+            total_lp = sum([float(p.get("value", 0)) for k, p in assets_by_protocol.items() if k not in ["wallet", "hyperliquid"]])
+            lp_pct = (total_lp / networth * 100) if networth > 0 else 0
+            
+            # Determine status based on range
+            lp_min_ideal = config.get("lp_min_ideal", 70)
+            lp_max_ideal = config.get("lp_max_ideal", 90)
+            
+            if lp_min_ideal <= lp_pct <= lp_max_ideal:
+                status_emoji = "🟢"
+                status_text = "Ideal"
+            elif lp_pct < lp_min_ideal:
+                status_emoji = "🟡"
+                status_text = "Baixo"
+            else:
+                status_emoji = "🔴"
+                status_text = "Alto"
+            
+            st.metric(
+                "💼 Alocação",
+                f"{status_emoji} {lp_pct:.1f}%",
+                f"{status_text} (LPs)",
+                help=f"Percentual em LPs (ideal: {lp_min_ideal}-{lp_max_ideal}%)"
+            )
+        
+        # Card 2: Hedge Status
         with col2:
-            st.metric("🏬 Posições LP", len(data['lp_positions']))
+            # Quick hedge check
+            lp_balances = data.get('lp_balances', {})
+            short_balances = data.get('short_balances', {})
+            
+            all_tokens = set(list(lp_balances.keys()) + list(short_balances.keys()))
+            hedge_issues = 0
+            
+            for token in all_tokens:
+                lp_bal = lp_balances.get(token, 0)
+                short_bal = short_balances.get(token, 0)
+                
+                if lp_bal == 0 and short_bal == 0:
+                    continue
+                
+                diff = abs(lp_bal - short_bal)
+                avg = (lp_bal + short_bal) / 2 if (lp_bal + short_bal) > 0 else 0
+                diff_pct = (diff / avg * 100) if avg > 0 else 0
+                
+                tolerance_pct = config.get("tolerance_pct", 5)
+                if diff_pct > tolerance_pct:
+                    hedge_issues += 1
+            
+            if hedge_issues == 0:
+                hedge_emoji = "🟢"
+                hedge_text = "Balanceado"
+            elif hedge_issues <= 2:
+                hedge_emoji = "🟡"
+                hedge_text = f"{hedge_issues} tokens"
+            else:
+                hedge_emoji = "🔴"
+                hedge_text = f"{hedge_issues} tokens"
+            
+            st.metric(
+                "⚖️ Hedge",
+                f"{hedge_emoji} {hedge_text}",
+                "Delta-Neutral",
+                help="Status do hedge por token"
+            )
+        
+        # Card 3: LP Positions
         with col3:
-            st.metric("📉 Posições Short", len([p for p in data['perp_positions'] if p.size < 0]))
-    
+            num_lps = len(data['lp_positions'])
+            st.metric(
+                "🏬 Posições LP",
+                f"{num_lps}",
+                "Ativas",
+                help="Número de posições LP ativas"
+            )
+        
+        # Card 4: Short Positions
+        with col4:
+            num_shorts = len([p for p in data['perp_positions'] if p.size < 0])
+            st.metric(
+                "📉 Shorts",
+                f"{num_shorts}",
+                "Hyperliquid",
+                help="Número de posições short"
+            )
+        
+        st.markdown("---")
+        st.markdown("### 📊 Análise Detalhada")
+        st.caption("👇 Role para baixo para ver análises detalhadas de alocação, performance e hedge")
         st.markdown("---")
         
         # ==================== CAPITAL ALLOCATION SECTION ====================
