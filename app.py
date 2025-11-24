@@ -441,6 +441,19 @@ def main():
             )
             suggestions = analyzer.compare_positions(lp_balances, short_balances, token_prices)
             
+            # Calculate hedge coverage and check if outside acceptable range
+            total_lp_value = sum(lp_balances.get(t, 0) * token_prices.get(t, 0) for t in lp_balances.keys())
+            total_short_value = sum(short_balances.get(t, 0) * token_prices.get(t, 0) for t in short_balances.keys())
+            
+            coverage_pct = (total_short_value / total_lp_value * 100) if total_lp_value > 0 else 0
+            coverage_trigger_activated = coverage_pct < 98.0 or coverage_pct > 102.0
+            
+            # If coverage trigger is activated, mark ALL suggestions with adjustments as required
+            if coverage_trigger_activated:
+                for s in suggestions:
+                    if s.action != "none":
+                        s.priority = "required"
+            
             # --- Display Executive Summary Cards ---
             col1, col2, col3, col4 = st.columns(4)
             with col1:
@@ -461,9 +474,16 @@ def main():
             trigger_activated = any(s.priority == "required" for s in suggestions)
             
             if trigger_activated:
-                st.warning(f"⚡ **GATILHO DE REBALANCEAMENTO ACIONADO!** Pelo menos uma posição tem ajuste **OBRIGATÓRIO** (valor maior que o gatilho de {hedge_value_threshold_pct}%). **TODAS as posições com desvio serão ajustadas**.")
+                trigger_reasons = []
+                if coverage_trigger_activated:
+                    trigger_reasons.append(f"Cobertura de hedge fora do range 98-102% (atual: {coverage_pct:.1f}%)")
+                if any(s.priority == "required" and s.adjustment_value_usd / networth * 100 >= hedge_value_threshold_pct for s in suggestions):
+                    trigger_reasons.append(f"Pelo menos uma posição tem ajuste maior que {hedge_value_threshold_pct}% do capital")
+                
+                trigger_text = " | ".join(trigger_reasons)
+                st.warning(f"⚡ **GATILHO DE REBALANCEAMENTO ACIONADO!** {trigger_text}. **TODAS as posições com desvio serão ajustadas**.")
             else:
-                st.success("✅ Nenhuma posição requer ajuste obrigatório.")
+                st.success(f"✅ Nenhuma posição requer ajuste obrigatório. Cobertura de hedge: {coverage_pct:.1f}% (range aceitável: 98-102%)")
 
             # Display suggestions
             if not suggestions:
