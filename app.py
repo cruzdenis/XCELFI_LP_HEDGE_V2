@@ -116,10 +116,14 @@ def background_sync_worker():
                         networth = float(portfolio.get("networth", "0"))
                         hedge_value_threshold_pct = config.get("hedge_value_threshold_pct", 10.0)
                         
-                        # Extract token prices from LP positions
+                        # Extract token prices from LP positions (normalize symbols)
                         token_prices = {}
                         for pos in lp_positions:
-                            token_prices[pos.token_symbol] = pos.price
+                            # Normalize symbol (WBTC -> BTC, WETH -> ETH)
+                            symbol = pos.token_symbol.upper()
+                            if symbol.startswith('W'):
+                                symbol = symbol[1:]  # Remove 'W' prefix
+                            token_prices[symbol] = pos.price
                         
                         analyzer = DeltaNeutralAnalyzer(
                             tolerance_pct=tolerance_pct,
@@ -1372,10 +1376,14 @@ with tab2:
         networth = float(data['portfolio'].get("networth", "0"))
         hedge_value_threshold_pct = config.get("hedge_value_threshold_pct", 10.0)
         
-        # Extract token prices
+        # Extract token prices (normalize symbols)
         token_prices = {}
         for pos in data['lp_positions']:
-            token_prices[pos.token_symbol] = pos.price
+            # Normalize symbol (WBTC -> BTC, WETH -> ETH)
+            symbol = pos.token_symbol.upper()
+            if symbol.startswith('W'):
+                symbol = symbol[1:]  # Remove 'W' prefix
+            token_prices[symbol] = pos.price
     
         analyzer = DeltaNeutralAnalyzer(
             tolerance_pct=tolerance_pct,
