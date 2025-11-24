@@ -539,7 +539,7 @@ def main():
                     point["nav_per_share"] = (point["nav"] / shares_at_time) if shares_at_time > 0 else 1.0
                 
                 df_nav = pd.DataFrame(nav_data)
-                df_nav["timestamp"] = pd.to_datetime(df_nav["timestamp"])
+                df_nav["timestamp"] = pd.to_datetime(df_nav["timestamp"], format='ISO8601')
                 
                 # Graph 1: Absolute NAV
                 fig1 = go.Figure()
@@ -640,7 +640,7 @@ def main():
                 st.info("📊 Nenhuma transação registrada.")
             else:
                 df_txns = pd.DataFrame(share_transactions)
-                df_txns["timestamp"] = pd.to_datetime(df_txns["timestamp"])
+                df_txns["timestamp"] = pd.to_datetime(df_txns["timestamp"], format='ISO8601')
                 df_txns = df_txns.sort_values("timestamp", ascending=False)
                 
                 # Add index for deletion
@@ -694,7 +694,7 @@ def main():
                 st.info("📊 Nenhum NAV histórico importado.")
             else:
                 df_nav_hist = pd.DataFrame(nav_snapshots)
-                df_nav_hist["timestamp"] = pd.to_datetime(df_nav_hist["timestamp"])
+                df_nav_hist["timestamp"] = pd.to_datetime(df_nav_hist["timestamp"], format='ISO8601')
                 df_nav_hist = df_nav_hist.sort_values("timestamp", ascending=False)
                 
                 df_nav_hist_display = df_nav_hist.copy()
