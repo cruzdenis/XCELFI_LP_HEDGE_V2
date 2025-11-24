@@ -755,18 +755,23 @@ def main():
                 # --- Protocol Distribution Pie Chart (ALL PROTOCOLS) ---
                 st.subheader("🧀 Distribuição de Capital por Protocolo")
                 
-                # Aggregate LP protocols
+                # Extract protocol values from assetByProtocols (includes net value after borrows, rewards, etc.)
                 protocol_values = {}
-                for pos in lp_positions:
-                    protocol_values[pos.protocol] = protocol_values.get(pos.protocol, 0) + pos.value
-                
-                # Add Hyperliquid total balance (equity) from assetByProtocols
                 assets_by_protocol = data.get("assetByProtocols", {})
-                hyperliquid_data = assets_by_protocol.get("hyperliquid", {})
-                hyperliquid_balance = float(hyperliquid_data.get("value", 0))
                 
-                if hyperliquid_balance > 0:
-                    protocol_values["Hyperliquid"] = hyperliquid_balance
+                for protocol_key, protocol_data in assets_by_protocol.items():
+                    # Skip wallet
+                    if protocol_key.lower() == "wallet":
+                        continue
+                    
+                    # Get protocol name
+                    protocol_name = protocol_data.get("name", protocol_key.title())
+                    
+                    # Get total value (net value after borrows, includes rewards)
+                    protocol_value = float(protocol_data.get("value", 0))
+                    
+                    if protocol_value > 0:
+                        protocol_values[protocol_name] = protocol_value
                 
                 # Calculate total portfolio value
                 total_portfolio_value = sum(protocol_values.values())
