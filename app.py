@@ -464,7 +464,8 @@ def main():
         # Calculate current NAV from portfolio data if available
         current_nav = None
         if 'portfolio_data' in st.session_state:
-            current_nav = st.session_state['portfolio_data'].get('networth', 0)
+            nav_value = st.session_state['portfolio_data'].get('networth', 0)
+            current_nav = float(nav_value) if nav_value else None
         
         # Calculate total shares
         total_shares = config_mgr.get_total_shares()
