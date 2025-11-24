@@ -652,36 +652,59 @@ def main():
             if not share_transactions:
                 st.info("📊 Nenhuma transação registrada.")
             else:
-                df_txns = pd.DataFrame(share_transactions)
-                df_txns["timestamp"] = pd.to_datetime(df_txns["timestamp"], format='ISO8601')
-                df_txns = df_txns.sort_values("timestamp", ascending=False)
+                # Sort by timestamp descending
+                sorted_txns = sorted(share_transactions, key=lambda x: x["timestamp"], reverse=True)
                 
-                # Add index for deletion
-                df_txns_display = df_txns.copy()
-                df_txns_display["Tipo"] = df_txns_display["type"].apply(lambda x: "Aporte" if x == "deposit" else "Saque")
-                df_txns_display["Data"] = df_txns_display["timestamp"].dt.strftime("%Y-%m-%d %H:%M")
-                df_txns_display["Valor USD"] = df_txns_display["amount_usd"].apply(lambda x: f"${x:,.2f}")
-                df_txns_display["Shares"] = df_txns_display["shares"].apply(lambda x: f"{x:,.4f}")
-                df_txns_display["NAV/Share"] = df_txns_display["nav_per_share"].apply(lambda x: f"${x:,.4f}")
-                df_txns_display["Descrição"] = df_txns_display["description"]
+                # Header
+                col1, col2, col3, col4, col5, col6, col7 = st.columns([2, 1, 1.5, 1.5, 1.5, 2, 0.5])
+                with col1:
+                    st.markdown("**Data**")
+                with col2:
+                    st.markdown("**Tipo**")
+                with col3:
+                    st.markdown("**Valor USD**")
+                with col4:
+                    st.markdown("**Shares**")
+                with col5:
+                    st.markdown("**NAV/Share**")
+                with col6:
+                    st.markdown("**Descrição**")
+                with col7:
+                    st.markdown("**Ação**")
                 
-                st.dataframe(
-                    df_txns_display[["Data", "Tipo", "Valor USD", "Shares", "NAV/Share", "Descrição"]],
-                    use_container_width=True
-                )
+                st.markdown("---")
                 
-                # Delete transaction
-                st.markdown("#### 🗑️ Excluir Transação")
-                txn_to_delete = st.selectbox(
-                    "Selecione a transação para excluir",
-                    range(len(share_transactions)),
-                    format_func=lambda i: f"{share_transactions[i]['timestamp'][:16]} - {share_transactions[i]['type']} - ${share_transactions[i]['amount_usd']:,.2f}"
-                )
-                
-                if st.button("🗑️ Excluir Transação Selecionada", type="secondary"):
-                    config_mgr.delete_share_transaction(txn_to_delete)
-                    st.success("✅ Transação excluída!")
-                    st.rerun()
+                # Display each transaction with delete button
+                for idx, txn in enumerate(sorted_txns):
+                    # Find original index in unsorted list
+                    original_idx = share_transactions.index(txn)
+                    
+                    col1, col2, col3, col4, col5, col6, col7 = st.columns([2, 1, 1.5, 1.5, 1.5, 2, 0.5])
+                    
+                    with col1:
+                        timestamp_dt = datetime.fromisoformat(txn["timestamp"])
+                        st.text(timestamp_dt.strftime("%Y-%m-%d %H:%M"))
+                    
+                    with col2:
+                        tipo = "Aporte" if txn["type"] == "deposit" else "Saque"
+                        st.text(tipo)
+                    
+                    with col3:
+                        st.text(f"${txn['amount_usd']:,.2f}")
+                    
+                    with col4:
+                        st.text(f"{txn['shares']:,.4f}")
+                    
+                    with col5:
+                        st.text(f"${txn['nav_per_share']:,.4f}")
+                    
+                    with col6:
+                        st.text(txn.get("description", ""))
+                    
+                    with col7:
+                        if st.button("❌", key=f"delete_txn_{idx}", help="Excluir esta transação"):
+                            config_mgr.delete_share_transaction(original_idx)
+                            st.rerun()
         
         # --- Import Historical NAV Tab ---
         with nav_tab3:
@@ -717,32 +740,27 @@ def main():
             if not nav_snapshots:
                 st.info("📊 Nenhum NAV histórico importado.")
             else:
-                df_nav_hist = pd.DataFrame(nav_snapshots)
-                df_nav_hist["timestamp"] = pd.to_datetime(df_nav_hist["timestamp"], format='ISO8601')
-                df_nav_hist = df_nav_hist.sort_values("timestamp", ascending=False)
+                # Sort by timestamp descending
+                sorted_snapshots = sorted(nav_snapshots, key=lambda x: x["timestamp"], reverse=True)
                 
-                df_nav_hist_display = df_nav_hist.copy()
-                df_nav_hist_display["Data"] = df_nav_hist_display["timestamp"].dt.strftime("%Y-%m-%d %H:%M")
-                df_nav_hist_display["NAV (USD)"] = df_nav_hist_display["nav"].apply(lambda x: f"${x:,.2f}")
-                
-                st.dataframe(
-                    df_nav_hist_display[["Data", "NAV (USD)"]],
-                    use_container_width=True
-                )
-                
-                # Delete NAV snapshot
-                st.markdown("#### 🗑️ Excluir NAV Histórico")
-                nav_to_delete = st.selectbox(
-                    "Selecione o NAV para excluir",
-                    range(len(nav_snapshots)),
-                    format_func=lambda i: f"{nav_snapshots[i]['timestamp'][:16]} - ${nav_snapshots[i]['nav']:,.2f}",
-                    key="nav_to_delete_selector"
-                )
-                
-                if st.button("🗑️ Excluir NAV Selecionado", type="secondary", key="delete_nav_btn"):
-                    config_mgr.delete_nav_snapshot(nav_to_delete)
-                    st.success("✅ NAV histórico excluído!")
-                    st.rerun()
+                # Display each snapshot with delete button
+                for idx, snap in enumerate(sorted_snapshots):
+                    # Find original index in unsorted list
+                    original_idx = nav_snapshots.index(snap)
+                    
+                    col1, col2, col3 = st.columns([3, 3, 1])
+                    
+                    with col1:
+                        timestamp_dt = datetime.fromisoformat(snap["timestamp"])
+                        st.text(timestamp_dt.strftime("%Y-%m-%d %H:%M"))
+                    
+                    with col2:
+                        st.text(f"${snap['nav']:,.2f}")
+                    
+                    with col3:
+                        if st.button("❌", key=f"delete_nav_{idx}", help="Excluir este NAV"):
+                            config_mgr.delete_nav_snapshot(original_idx)
+                            st.rerun()
         
         # --- Quote Now Tab ---
         with nav_tab4:
