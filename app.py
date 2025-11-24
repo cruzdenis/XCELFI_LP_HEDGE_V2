@@ -600,8 +600,66 @@ def main():
                 } for pos in lp_positions])
                 st.dataframe(df_lp, use_container_width=True)
 
-                # Aggregated balances
-                st.subheader("📊 Balanços Agregados")
+                st.markdown("---")
+                
+                # --- Protocol Distribution Pie Chart ---
+                st.subheader("🧀 Distribuição por Protocolo (Valor de Liquidação em USD)")
+                
+                # Aggregate by protocol
+                protocol_values = {}
+                for pos in lp_positions:
+                    protocol_values[pos.protocol] = protocol_values.get(pos.protocol, 0) + pos.value
+                
+                if protocol_values:
+                    import plotly.express as px
+                    
+                    df_protocols = pd.DataFrame([
+                        {"Protocolo": protocol, "Valor USD": value}
+                        for protocol, value in protocol_values.items()
+                    ])
+                    
+                    fig = px.pie(
+                        df_protocols,
+                        values="Valor USD",
+                        names="Protocolo",
+                        title="Distribuição de Valor por Protocolo",
+                        hole=0.3,  # Donut chart
+                        color_discrete_sequence=px.colors.qualitative.Set3
+                    )
+                    
+                    fig.update_traces(
+                        textposition='inside',
+                        textinfo='percent+label',
+                        hovertemplate='<b>%{label}</b><br>Valor: $%{value:,.2f}<br>Percentual: %{percent}<extra></extra>'
+                    )
+                    
+                    fig.update_layout(
+                        showlegend=True,
+                        height=500
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Show protocol values table
+                    total_value = sum(protocol_values.values())
+                    protocol_table = []
+                    for protocol, value in sorted(protocol_values.items(), key=lambda x: x[1], reverse=True):
+                        pct = (value / total_value * 100) if total_value > 0 else 0
+                        protocol_table.append({
+                            "Protocolo": protocol,
+                            "Valor USD": f"${value:,.2f}",
+                            "Percentual": f"{pct:.2f}%"
+                        })
+                    
+                    df_protocol_table = pd.DataFrame(protocol_table)
+                    st.dataframe(df_protocol_table, use_container_width=True)
+                    
+                    st.metric("💰 Valor Total de Liquidação", f"${total_value:,.2f}")
+                
+                st.markdown("---")
+                
+                # Aggregated balances by token
+                st.subheader("📊 Balanços Agregados por Token")
                 lp_balances = {}
                 for pos in lp_positions:
                     symbol = OctavClient.normalize_symbol(pos.token_symbol)
