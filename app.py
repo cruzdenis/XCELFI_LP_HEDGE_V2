@@ -752,6 +752,60 @@ def main():
                 
                 st.markdown("---")
                 
+                # --- Protocol Distribution Pie Chart ---
+                st.subheader("🧀 Distribuição de Valor LP por Protocolo")
+                
+                # Aggregate by protocol
+                protocol_values = {}
+                for pos in lp_positions:
+                    protocol_values[pos.protocol] = protocol_values.get(pos.protocol, 0) + pos.value
+                
+                if protocol_values:
+                    import plotly.express as px
+                    import pandas as pd
+                    
+                    df_protocols = pd.DataFrame([
+                        {"Protocolo": protocol, "Valor USD": value}
+                        for protocol, value in protocol_values.items()
+                    ])
+                    
+                    fig = px.pie(
+                        df_protocols,
+                        values="Valor USD",
+                        names="Protocolo",
+                        title="Valor em USD por Protocolo (Posições LP)",
+                        hole=0.3,  # Donut chart
+                        color_discrete_sequence=px.colors.qualitative.Pastel
+                    )
+                    
+                    fig.update_traces(
+                        textposition='inside',
+                        textinfo='percent+label',
+                        hovertemplate='<b>%{label}</b><br>Valor: $%{value:,.2f}<br>Percentual: %{percent}<extra></extra>'
+                    )
+                    
+                    fig.update_layout(
+                        showlegend=True,
+                        height=400
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Show protocol values table
+                    protocol_table = []
+                    for protocol, value in sorted(protocol_values.items(), key=lambda x: x[1], reverse=True):
+                        pct = (value / total_lp_value * 100) if total_lp_value > 0 else 0
+                        protocol_table.append({
+                            "Protocolo": protocol,
+                            "Valor USD": f"${value:,.2f}",
+                            "% do Total LP": f"{pct:.2f}%"
+                        })
+                    
+                    df_protocol_table = pd.DataFrame(protocol_table)
+                    st.dataframe(df_protocol_table, use_container_width=True)
+                
+                st.markdown("---")
+                
                 # --- Detailed Breakdown ---
                 st.subheader("📊 Detalhamento por Token")
                 
