@@ -612,7 +612,7 @@ def main():
     # --- History Tab ---
     with tab_history:
         st.header("📜 Histórico de Sincronização")
-        history = config_mgr.get_sync_history()
+        history = config_mgr.load_history()
         if not history:
             st.info("Nenhum histórico de sincronização encontrado.")
         else:
@@ -624,7 +624,7 @@ def main():
     # --- Executions Tab ---
     with tab_executions:
         st.header("📈 Histórico de Execuções")
-        executions = config_mgr.get_execution_history()
+        executions = config_mgr.load_execution_history()
         if not executions:
             st.info("Nenhum histórico de execução encontrado.")
         else:
