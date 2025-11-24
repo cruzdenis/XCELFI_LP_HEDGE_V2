@@ -19,7 +19,7 @@ class ConfigManager:
         self.execution_history_file = self.config_dir / "execution_history.json"
         self.transactions_file = self.config_dir / "transactions.json"
     
-    def save_config(self, api_key, wallet_address, tolerance_pct=5.0, hyperliquid_private_key="", auto_sync_enabled=False, auto_sync_interval_hours=1, auto_execute_enabled=False, lp_min_ideal=70.0, lp_target=80.0, lp_max_ideal=90.0, enabled_protocols=None):
+    def save_config(self, api_key, wallet_address, tolerance_pct=5.0, hyperliquid_private_key="", auto_sync_enabled=False, auto_sync_interval_hours=1, auto_execute_enabled=False, lp_min_ideal=70.0, lp_target=80.0, lp_max_ideal=90.0, enabled_protocols=None, hedge_value_threshold_pct=10.0):
         """Save configuration to file"""
         if enabled_protocols is None:
             enabled_protocols = ["Revert", "Uniswap3", "Uniswap4", "Dhedge"]
@@ -36,6 +36,7 @@ class ConfigManager:
             "lp_target": lp_target,
             "lp_max_ideal": lp_max_ideal,
             "enabled_protocols": enabled_protocols,
+            "hedge_value_threshold_pct": hedge_value_threshold_pct,
             "saved_at": datetime.now().isoformat()
         }
         

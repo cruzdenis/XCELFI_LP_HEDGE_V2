@@ -18,24 +18,31 @@ class DeltaNeutralSuggestion:
     status: str  # "balanced", "under_hedged", "over_hedged"
     action: str  # "none", "increase_short", "decrease_short"
     adjustment_amount: float
+    adjustment_value_usd: float = 0.0  # Value of adjustment in USD
+    priority: str = "optional"  # "required", "optional"
 
 
 class DeltaNeutralAnalyzer:
     """Analyzes positions and suggests adjustments for delta neutral strategy"""
     
-    def __init__(self, tolerance_pct: float = 5.0):
+    def __init__(self, tolerance_pct: float = 5.0, hedge_value_threshold_pct: float = 10.0, total_capital: float = 0.0):
         """
         Initialize analyzer
         
         Args:
             tolerance_pct: Tolerance percentage for considering positions balanced (default: 5%)
+            hedge_value_threshold_pct: Minimum value (% of total capital) to require hedge action (default: 10%)
+            total_capital: Total portfolio value in USD for value-based threshold calculation
         """
         self.tolerance_pct = tolerance_pct
+        self.hedge_value_threshold_pct = hedge_value_threshold_pct
+        self.total_capital = total_capital
     
     def compare_positions(
         self,
         lp_balances: Dict[str, float],
-        short_balances: Dict[str, float]
+        short_balances: Dict[str, float],
+        token_prices: Dict[str, float] = None
     ) -> List[DeltaNeutralSuggestion]:
         """
         Compare LP and short positions and generate suggestions
@@ -46,10 +53,13 @@ class DeltaNeutralAnalyzer:
         Args:
             lp_balances: Dictionary of token balances in LP positions
             short_balances: Dictionary of short position sizes
+            token_prices: Dictionary of token prices in USD (optional, for value-based priority)
             
         Returns:
             List of suggestions for each token
         """
+        if token_prices is None:
+            token_prices = {}
         suggestions = []
         
         # Get all unique tokens from both LP and shorts
@@ -89,6 +99,17 @@ class DeltaNeutralAnalyzer:
                 action = "decrease_short"
                 adjustment = abs(difference)
             
+            # Calculate adjustment value in USD
+            token_price = token_prices.get(token, 0.0)
+            adjustment_value_usd = adjustment * token_price
+            
+            # Determine priority based on value threshold
+            priority = "optional"
+            if self.total_capital > 0 and token_price > 0:
+                value_pct_of_capital = (adjustment_value_usd / self.total_capital) * 100
+                if value_pct_of_capital >= self.hedge_value_threshold_pct:
+                    priority = "required"
+            
             suggestion = DeltaNeutralSuggestion(
                 token=token,
                 lp_balance=lp_bal,
@@ -97,7 +118,9 @@ class DeltaNeutralAnalyzer:
                 difference_pct=diff_pct,
                 status=status,
                 action=action,
-                adjustment_amount=adjustment
+                adjustment_amount=adjustment,
+                adjustment_value_usd=adjustment_value_usd,
+                priority=priority
             )
             
             temp_suggestions.append(suggestion)
