@@ -601,12 +601,12 @@ def main():
             # Get last quotation automatically
             last_nav_per_share = 1.0  # Default for first deposit
             
-            if nav_snapshots and total_shares > 0:
+            if nav_snapshots:
                 # Calculate NAV per share from last snapshot
                 last_snapshot = nav_snapshots[-1]  # Already sorted by timestamp
                 last_nav = last_snapshot["nav"]
                 
-                # Calculate shares at that time
+                # Calculate shares AT THE SAME TIMESTAMP as the NAV snapshot
                 shares_at_last_snapshot = 0
                 for txn in share_transactions:
                     if txn["timestamp"] <= last_snapshot["timestamp"]:
@@ -617,6 +617,9 @@ def main():
                 
                 if shares_at_last_snapshot > 0:
                     last_nav_per_share = last_nav / shares_at_last_snapshot
+                else:
+                    # If no shares at that time, use 1:1 (first deposit scenario)
+                    last_nav_per_share = 1.0
             
             # Display last quotation info
             if nav_snapshots:
