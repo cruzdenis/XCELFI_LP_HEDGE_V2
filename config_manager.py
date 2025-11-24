@@ -466,6 +466,163 @@ class ConfigManager:
         self.save_config(config)
         return True
     
+    # NAV-related methods
+    
+    def add_nav_snapshot(self, nav_value: float, custom_date: str = None, wallet_id=None):
+        """Add a NAV snapshot for historical tracking"""
+        if wallet_id is None:
+            wallet_id = self.get_active_wallet_id()
+        
+        if not wallet_id:
+            return False
+        
+        config = self.load_config()
+        wallet = config["wallets"].get(wallet_id)
+        
+        if not wallet:
+            return False
+        
+        timestamp = custom_date if custom_date else datetime.now().isoformat()
+        
+        snapshot = {
+            "timestamp": timestamp,
+            "nav": nav_value
+        }
+        
+        if "nav_snapshots" not in wallet:
+            wallet["nav_snapshots"] = []
+        
+        wallet["nav_snapshots"].append(snapshot)
+        
+        # Sort by timestamp
+        wallet["nav_snapshots"].sort(key=lambda x: x["timestamp"])
+        
+        self.save_config(config)
+        return True
+    
+    def load_nav_snapshots(self, wallet_id=None):
+        """Load NAV snapshots for a wallet"""
+        if wallet_id is None:
+            wallet_id = self.get_active_wallet_id()
+        
+        if not wallet_id:
+            return []
+        
+        config = self.load_config()
+        wallet = config["wallets"].get(wallet_id)
+        
+        if not wallet:
+            return []
+        
+        return wallet.get("nav_snapshots", [])
+    
+    def delete_nav_snapshot(self, index: int, wallet_id=None):
+        """Delete a NAV snapshot by index"""
+        if wallet_id is None:
+            wallet_id = self.get_active_wallet_id()
+        
+        if not wallet_id:
+            return False
+        
+        config = self.load_config()
+        wallet = config["wallets"].get(wallet_id)
+        
+        if not wallet or "nav_snapshots" not in wallet:
+            return False
+        
+        if 0 <= index < len(wallet["nav_snapshots"]):
+            wallet["nav_snapshots"].pop(index)
+            self.save_config(config)
+            return True
+        
+        return False
+    
+    def add_share_transaction(self, transaction_type: str, amount_usd: float, shares: float, nav_per_share: float, description: str = "", custom_date: str = None, wallet_id=None):
+        """Add a share transaction (deposit/withdrawal with share calculation)"""
+        if wallet_id is None:
+            wallet_id = self.get_active_wallet_id()
+        
+        if not wallet_id:
+            return False
+        
+        config = self.load_config()
+        wallet = config["wallets"].get(wallet_id)
+        
+        if not wallet:
+            return False
+        
+        timestamp = custom_date if custom_date else datetime.now().isoformat()
+        
+        transaction = {
+            "timestamp": timestamp,
+            "type": transaction_type,  # "deposit" or "withdrawal"
+            "amount_usd": amount_usd,
+            "shares": shares,
+            "nav_per_share": nav_per_share,
+            "description": description
+        }
+        
+        if "share_transactions" not in wallet:
+            wallet["share_transactions"] = []
+        
+        wallet["share_transactions"].append(transaction)
+        
+        # Sort by timestamp
+        wallet["share_transactions"].sort(key=lambda x: x["timestamp"])
+        
+        self.save_config(config)
+        return True
+    
+    def load_share_transactions(self, wallet_id=None):
+        """Load share transactions for a wallet"""
+        if wallet_id is None:
+            wallet_id = self.get_active_wallet_id()
+        
+        if not wallet_id:
+            return []
+        
+        config = self.load_config()
+        wallet = config["wallets"].get(wallet_id)
+        
+        if not wallet:
+            return []
+        
+        return wallet.get("share_transactions", [])
+    
+    def delete_share_transaction(self, index: int, wallet_id=None):
+        """Delete a share transaction by index"""
+        if wallet_id is None:
+            wallet_id = self.get_active_wallet_id()
+        
+        if not wallet_id:
+            return False
+        
+        config = self.load_config()
+        wallet = config["wallets"].get(wallet_id)
+        
+        if not wallet or "share_transactions" not in wallet:
+            return False
+        
+        if 0 <= index < len(wallet["share_transactions"]):
+            wallet["share_transactions"].pop(index)
+            self.save_config(config)
+            return True
+        
+        return False
+    
+    def get_total_shares(self, wallet_id=None):
+        """Calculate total shares (deposits - withdrawals)"""
+        transactions = self.load_share_transactions(wallet_id)
+        
+        total_shares = 0
+        for txn in transactions:
+            if txn["type"] == "deposit":
+                total_shares += txn["shares"]
+            elif txn["type"] == "withdrawal":
+                total_shares -= txn["shares"]
+        
+        return total_shares
+    
     def create_backup(self, wallet_id=None):
         """Create backup for a specific wallet or all wallets"""
         config = self.load_config()

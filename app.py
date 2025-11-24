@@ -325,8 +325,9 @@ def main():
     st.markdown("<p class=\"last-sync\">Delta-Neutral LP Hedge Dashboard</p>", unsafe_allow_html=True)
 
     # --- Tabs ---
-    tab_config, tab_dashboard, tab_lp_positions, tab_history, tab_executions, tab_proof_of_reserves, tab_balance_eq = st.tabs([
-        "⚙️ Configuração", 
+    tab_config, tab_nav, tab_dashboard, tab_lp_positions, tab_history, tab_executions, tab_proof_of_reserves, tab_balance_eq = st.tabs([
+        "⚙️ Configuração",
+        "📈 NAV",
         "📊 Dashboard", 
         "🏬 Posições LP", 
         "📜 Histórico", 
@@ -447,6 +448,295 @@ def main():
                 except Exception as e:
                     st.error(f"❌ Erro ao processar backup: {str(e)}")
 
+    # --- NAV Tab ---
+    with tab_nav:
+        st.header("📈 NAV (Net Asset Value)")
+        st.info("📊 Acompanhe o valor líquido do seu portfólio e a evolução da cotação, desconsiderando aportes e saques.")
+        
+        import plotly.graph_objects as go
+        import pandas as pd
+        from datetime import datetime
+        
+        # Get NAV data
+        nav_snapshots = config_mgr.load_nav_snapshots()
+        share_transactions = config_mgr.load_share_transactions()
+        
+        # Calculate current NAV from portfolio data if available
+        current_nav = None
+        if 'portfolio_data' in st.session_state:
+            current_nav = st.session_state['portfolio_data'].get('networth', 0)
+        
+        # Calculate total shares
+        total_shares = config_mgr.get_total_shares()
+        
+        # Calculate NAV per share
+        nav_per_share = (current_nav / total_shares) if (current_nav and total_shares > 0) else 1.0
+        
+        # Display current metrics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("💰 NAV Atual", f"${current_nav:,.2f}" if current_nav else "N/A")
+        with col2:
+            st.metric("📋 Total Shares", f"{total_shares:,.4f}" if total_shares > 0 else "0")
+        with col3:
+            st.metric("📈 NAV per Share", f"${nav_per_share:,.4f}")
+        
+        st.markdown("---")
+        
+        # Check if initial deposit exists
+        if not share_transactions:
+            st.warning("⚠️ **Nenhum aporte inicial encontrado!** Por favor, insira o primeiro aporte abaixo para inicializar o sistema de cotas.")
+            st.info("💡 **Dica**: O primeiro aporte define as shares iniciais. Cota inicial = 1:1 (1 share = $1 USD)")
+        
+        # Tabs for different sections
+        nav_tab1, nav_tab2, nav_tab3, nav_tab4 = st.tabs([
+            "📈 Gráficos",
+            "💵 Aportes/Saques",
+            "📊 Importar NAV Histórico",
+            "🔄 Cotizar Agora"
+        ])
+        
+        # --- Graphs Tab ---
+        with nav_tab1:
+            st.subheader("📈 Evolução do NAV")
+            
+            if not nav_snapshots and not current_nav:
+                st.info("📊 Nenhum dado de NAV disponível. Execute 'Analisar Hedge' no Dashboard ou importe dados históricos.")
+            else:
+                # Prepare data for graphs
+                nav_data = []
+                
+                # Add historical snapshots
+                for snap in nav_snapshots:
+                    nav_data.append({
+                        "timestamp": snap["timestamp"],
+                        "nav": snap["nav"]
+                    })
+                
+                # Add current NAV if available
+                if current_nav:
+                    nav_data.append({
+                        "timestamp": datetime.now().isoformat(),
+                        "nav": current_nav
+                    })
+                
+                # Sort by timestamp
+                nav_data.sort(key=lambda x: x["timestamp"])
+                
+                # Calculate NAV per share for each point
+                for i, point in enumerate(nav_data):
+                    # Find total shares at this point in time
+                    shares_at_time = 0
+                    for txn in share_transactions:
+                        if txn["timestamp"] <= point["timestamp"]:
+                            if txn["type"] == "deposit":
+                                shares_at_time += txn["shares"]
+                            elif txn["type"] == "withdrawal":
+                                shares_at_time -= txn["shares"]
+                    
+                    point["shares"] = shares_at_time
+                    point["nav_per_share"] = (point["nav"] / shares_at_time) if shares_at_time > 0 else 1.0
+                
+                df_nav = pd.DataFrame(nav_data)
+                df_nav["timestamp"] = pd.to_datetime(df_nav["timestamp"])
+                
+                # Graph 1: Absolute NAV
+                fig1 = go.Figure()
+                fig1.add_trace(go.Scatter(
+                    x=df_nav["timestamp"],
+                    y=df_nav["nav"],
+                    mode='lines+markers',
+                    name='NAV Absoluto',
+                    line=dict(color='#1f77b4', width=2),
+                    marker=dict(size=8)
+                ))
+                fig1.update_layout(
+                    title="NAV Absoluto ao Longo do Tempo",
+                    xaxis_title="Data",
+                    yaxis_title="NAV (USD)",
+                    hovermode='x unified',
+                    template="plotly_dark"
+                )
+                st.plotly_chart(fig1, use_container_width=True)
+                
+                # Graph 2: NAV per Share
+                fig2 = go.Figure()
+                fig2.add_trace(go.Scatter(
+                    x=df_nav["timestamp"],
+                    y=df_nav["nav_per_share"],
+                    mode='lines+markers',
+                    name='NAV per Share',
+                    line=dict(color='#2ca02c', width=2),
+                    marker=dict(size=8)
+                ))
+                fig2.update_layout(
+                    title="NAV per Share (Cotação) ao Longo do Tempo",
+                    xaxis_title="Data",
+                    yaxis_title="NAV per Share (USD)",
+                    hovermode='x unified',
+                    template="plotly_dark"
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+                
+                # Performance metrics
+                if len(df_nav) > 1:
+                    initial_nav_per_share = df_nav.iloc[0]["nav_per_share"]
+                    current_nav_per_share = df_nav.iloc[-1]["nav_per_share"]
+                    performance = ((current_nav_per_share - initial_nav_per_share) / initial_nav_per_share) * 100
+                    
+                    st.markdown("### 🎯 Performance")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Cotação Inicial", f"${initial_nav_per_share:,.4f}")
+                    with col2:
+                        st.metric("Cotação Atual", f"${current_nav_per_share:,.4f}")
+                    with col3:
+                        st.metric("Retorno %", f"{performance:+.2f}%")
+        
+        # --- Deposits/Withdrawals Tab ---
+        with nav_tab2:
+            st.subheader("💵 Gerenciar Aportes e Saques")
+            
+            # Warning to quote before transaction
+            if current_nav and total_shares > 0:
+                st.success(f"✅ Cotação atual: **${nav_per_share:,.4f}** por share")
+            else:
+                st.warning("⚠️ **Cotize antes de inserir um novo aporte/saque!** Vá para a aba 'Cotizar Agora'.")
+            
+            # Add new transaction
+            with st.expander("➕ Adicionar Aporte/Saque"):
+                txn_type = st.selectbox("Tipo", ["deposit", "withdrawal"], format_func=lambda x: "Aporte" if x == "deposit" else "Saque")
+                txn_amount = st.number_input("Valor (USD)", min_value=0.01, step=0.01)
+                txn_date = st.date_input("Data")
+                txn_time = st.time_input("Hora")
+                txn_description = st.text_input("Descrição (opcional)")
+                
+                # Calculate shares based on current NAV per share
+                if nav_per_share > 0:
+                    calculated_shares = txn_amount / nav_per_share
+                    st.info(f"📋 Shares calculadas: **{calculated_shares:,.4f}** (baseado na cotação de ${nav_per_share:,.4f})")
+                else:
+                    calculated_shares = txn_amount  # 1:1 for first deposit
+                    st.info(f"📋 Shares calculadas: **{calculated_shares:,.4f}** (cotação inicial 1:1)")
+                
+                if st.button("➕ Adicionar Transação", type="primary"):
+                    txn_datetime = datetime.combine(txn_date, txn_time).isoformat()
+                    config_mgr.add_share_transaction(
+                        txn_type,
+                        txn_amount,
+                        calculated_shares,
+                        nav_per_share if nav_per_share > 0 else 1.0,
+                        txn_description,
+                        txn_datetime
+                    )
+                    st.success("✅ Transação adicionada com sucesso!")
+                    st.rerun()
+            
+            # Display transactions table
+            st.markdown("### 📋 Histórico de Aportes/Saques")
+            
+            if not share_transactions:
+                st.info("📊 Nenhuma transação registrada.")
+            else:
+                df_txns = pd.DataFrame(share_transactions)
+                df_txns["timestamp"] = pd.to_datetime(df_txns["timestamp"])
+                df_txns = df_txns.sort_values("timestamp", ascending=False)
+                
+                # Add index for deletion
+                df_txns_display = df_txns.copy()
+                df_txns_display["Tipo"] = df_txns_display["type"].apply(lambda x: "Aporte" if x == "deposit" else "Saque")
+                df_txns_display["Data"] = df_txns_display["timestamp"].dt.strftime("%Y-%m-%d %H:%M")
+                df_txns_display["Valor USD"] = df_txns_display["amount_usd"].apply(lambda x: f"${x:,.2f}")
+                df_txns_display["Shares"] = df_txns_display["shares"].apply(lambda x: f"{x:,.4f}")
+                df_txns_display["NAV/Share"] = df_txns_display["nav_per_share"].apply(lambda x: f"${x:,.4f}")
+                df_txns_display["Descrição"] = df_txns_display["description"]
+                
+                st.dataframe(
+                    df_txns_display[["Data", "Tipo", "Valor USD", "Shares", "NAV/Share", "Descrição"]],
+                    use_container_width=True
+                )
+                
+                # Delete transaction
+                st.markdown("#### 🗑️ Excluir Transação")
+                txn_to_delete = st.selectbox(
+                    "Selecione a transação para excluir",
+                    range(len(share_transactions)),
+                    format_func=lambda i: f"{share_transactions[i]['timestamp'][:16]} - {share_transactions[i]['type']} - ${share_transactions[i]['amount_usd']:,.2f}"
+                )
+                
+                if st.button("🗑️ Excluir Transação Selecionada", type="secondary"):
+                    config_mgr.delete_share_transaction(txn_to_delete)
+                    st.success("✅ Transação excluída!")
+                    st.rerun()
+        
+        # --- Import Historical NAV Tab ---
+        with nav_tab3:
+            st.subheader("📊 Importar NAV Histórico")
+            st.info("📌 Use esta seção para importar valores de NAV de períodos anteriores às sincronizações.")
+            
+            # Add historical NAV
+            with st.expander("➕ Adicionar NAV Histórico"):
+                hist_nav_value = st.number_input("Valor do NAV (USD)", min_value=0.01, step=0.01, key="hist_nav_value")
+                hist_nav_date = st.date_input("Data", key="hist_nav_date")
+                hist_nav_time = st.time_input("Hora", key="hist_nav_time")
+                
+                if st.button("➕ Adicionar NAV", type="primary", key="add_hist_nav_btn"):
+                    hist_nav_datetime = datetime.combine(hist_nav_date, hist_nav_time).isoformat()
+                    config_mgr.add_nav_snapshot(hist_nav_value, hist_nav_datetime)
+                    st.success("✅ NAV histórico adicionado!")
+                    st.rerun()
+            
+            # Display historical NAV table
+            st.markdown("### 📋 NAV Histórico Importado")
+            
+            if not nav_snapshots:
+                st.info("📊 Nenhum NAV histórico importado.")
+            else:
+                df_nav_hist = pd.DataFrame(nav_snapshots)
+                df_nav_hist["timestamp"] = pd.to_datetime(df_nav_hist["timestamp"])
+                df_nav_hist = df_nav_hist.sort_values("timestamp", ascending=False)
+                
+                df_nav_hist_display = df_nav_hist.copy()
+                df_nav_hist_display["Data"] = df_nav_hist_display["timestamp"].dt.strftime("%Y-%m-%d %H:%M")
+                df_nav_hist_display["NAV (USD)"] = df_nav_hist_display["nav"].apply(lambda x: f"${x:,.2f}")
+                
+                st.dataframe(
+                    df_nav_hist_display[["Data", "NAV (USD)"]],
+                    use_container_width=True
+                )
+                
+                # Delete NAV snapshot
+                st.markdown("#### 🗑️ Excluir NAV Histórico")
+                nav_to_delete = st.selectbox(
+                    "Selecione o NAV para excluir",
+                    range(len(nav_snapshots)),
+                    format_func=lambda i: f"{nav_snapshots[i]['timestamp'][:16]} - ${nav_snapshots[i]['nav']:,.2f}",
+                    key="nav_to_delete_selector"
+                )
+                
+                if st.button("🗑️ Excluir NAV Selecionado", type="secondary", key="delete_nav_btn"):
+                    config_mgr.delete_nav_snapshot(nav_to_delete)
+                    st.success("✅ NAV histórico excluído!")
+                    st.rerun()
+        
+        # --- Quote Now Tab ---
+        with nav_tab4:
+            st.subheader("🔄 Cotizar Agora")
+            st.info("📌 Crie um snapshot do NAV atual para registrar a cotação antes de fazer aportes/saques.")
+            
+            if not current_nav:
+                st.warning("⚠️ Execute 'Analisar Hedge' no Dashboard primeiro para obter o NAV atual.")
+            else:
+                st.success(f"💰 **NAV Atual**: ${current_nav:,.2f}")
+                st.success(f"📋 **Total Shares**: {total_shares:,.4f}")
+                st.success(f"📈 **NAV per Share**: ${nav_per_share:,.4f}")
+                
+                if st.button("🔄 Cotizar Agora", type="primary"):
+                    config_mgr.add_nav_snapshot(current_nav)
+                    st.success("✅ Cotação registrada com sucesso!")
+                    st.balloons()
+                    st.rerun()
+    
     # --- Dashboard Tab ---
     with tab_dashboard:
         st.header("📊 Dashboard - Análise Delta-Neutral")
