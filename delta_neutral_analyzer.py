@@ -103,9 +103,6 @@ class DeltaNeutralAnalyzer:
             token_price = token_prices.get(token, 0.0)
             adjustment_value_usd = adjustment * token_price
             
-            # DEBUG
-            print(f"DEBUG ANALYZER - Token: {token}, Price: {token_price}, Adjustment: {adjustment}, Value USD: {adjustment_value_usd}")
-            
             # Determine priority based on value threshold
             priority = "optional"
             if self.total_capital > 0 and token_price > 0:
@@ -146,6 +143,17 @@ class DeltaNeutralAnalyzer:
                         s.status = "over_hedged"
                         s.action = "decrease_short"
                         s.adjustment_amount = abs(s.difference)
+                    
+                    # BUGFIX: Recalculate USD value and priority for forced adjustments
+                    token_price = token_prices.get(s.token, 0.0)
+                    s.adjustment_value_usd = s.adjustment_amount * token_price
+                    
+                    # Recalculate priority
+                    s.priority = "optional"
+                    if self.total_capital > 0 and token_price > 0:
+                        value_pct_of_capital = (s.adjustment_value_usd / self.total_capital) * 100
+                        if value_pct_of_capital >= self.hedge_value_threshold_pct:
+                            s.priority = "required"
                 
                 suggestions.append(s)
         else:

@@ -1380,10 +1380,6 @@ with tab2:
             symbol = OctavClient.normalize_symbol(pos.token_symbol)
             token_prices[symbol] = pos.price
         
-        # DEBUG: Show token prices
-        st.write("DEBUG - Token Prices:", token_prices)
-        st.write("DEBUG - LP Balances:", lp_balances)
-        st.write("DEBUG - Short Balances:", short_balances)
     
         analyzer = DeltaNeutralAnalyzer(
             tolerance_pct=tolerance_pct,
