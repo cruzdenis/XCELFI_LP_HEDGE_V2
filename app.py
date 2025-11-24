@@ -622,16 +622,29 @@ def main():
                 
                 if st.button("➕ Adicionar Transação", type="primary"):
                     txn_datetime = datetime.combine(txn_date, txn_time).isoformat()
-                    config_mgr.add_share_transaction(
-                        txn_type,
-                        txn_amount,
-                        calculated_shares,
-                        nav_per_share if nav_per_share > 0 else 1.0,
-                        txn_description,
-                        txn_datetime
+                    
+                    # Check if this exact transaction already exists
+                    existing_txns = config_mgr.load_share_transactions()
+                    duplicate = any(
+                        txn["timestamp"] == txn_datetime and 
+                        txn["type"] == txn_type and 
+                        txn["amount_usd"] == txn_amount
+                        for txn in existing_txns
                     )
-                    st.success("✅ Transação adicionada com sucesso!")
-                    st.rerun()
+                    
+                    if duplicate:
+                        st.warning("⚠️ Esta transação já existe! Não foi adicionada novamente.")
+                    else:
+                        config_mgr.add_share_transaction(
+                            txn_type,
+                            txn_amount,
+                            calculated_shares,
+                            nav_per_share if nav_per_share > 0 else 1.0,
+                            txn_description,
+                            txn_datetime
+                        )
+                        st.success("✅ Transação adicionada com sucesso!")
+                        st.rerun()
             
             # Display transactions table
             st.markdown("### 📋 Histórico de Aportes/Saques")
@@ -683,9 +696,20 @@ def main():
                 
                 if st.button("➕ Adicionar NAV", type="primary", key="add_hist_nav_btn"):
                     hist_nav_datetime = datetime.combine(hist_nav_date, hist_nav_time).isoformat()
-                    config_mgr.add_nav_snapshot(hist_nav_value, hist_nav_datetime)
-                    st.success("✅ NAV histórico adicionado!")
-                    st.rerun()
+                    
+                    # Check if this exact snapshot already exists
+                    existing_snapshots = config_mgr.load_nav_snapshots()
+                    duplicate = any(
+                        snap["timestamp"] == hist_nav_datetime and snap["nav"] == hist_nav_value
+                        for snap in existing_snapshots
+                    )
+                    
+                    if duplicate:
+                        st.warning("⚠️ Este NAV já existe! Não foi adicionado novamente.")
+                    else:
+                        config_mgr.add_nav_snapshot(hist_nav_value, hist_nav_datetime)
+                        st.success("✅ NAV histórico adicionado!")
+                        st.rerun()
             
             # Display historical NAV table
             st.markdown("### 📋 NAV Histórico Importado")
@@ -733,10 +757,22 @@ def main():
                 st.success(f"📈 **NAV per Share**: ${nav_per_share:,.4f}")
                 
                 if st.button("🔄 Cotizar Agora", type="primary"):
-                    config_mgr.add_nav_snapshot(current_nav)
-                    st.success("✅ Cotação registrada com sucesso!")
-                    st.balloons()
-                    st.rerun()
+                    # Check if a snapshot with similar value and recent timestamp exists
+                    existing_snapshots = config_mgr.load_nav_snapshots()
+                    now = datetime.now()
+                    recent_duplicate = any(
+                        abs(snap["nav"] - current_nav) < 0.01 and 
+                        abs((datetime.fromisoformat(snap["timestamp"]) - now).total_seconds()) < 60
+                        for snap in existing_snapshots
+                    )
+                    
+                    if recent_duplicate:
+                        st.warning("⚠️ Uma cotação similar foi registrada recentemente. Não foi adicionada novamente.")
+                    else:
+                        config_mgr.add_nav_snapshot(current_nav)
+                        st.success("✅ Cotação registrada com sucesso!")
+                        st.balloons()
+                        st.rerun()
     
     # --- Dashboard Tab ---
     with tab_dashboard:
