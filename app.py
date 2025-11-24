@@ -409,8 +409,12 @@ def main():
             lp_allocation_pct = (lp_value / networth * 100) if networth > 0 else 0
             
             client = OctavClient(config["api_key"])
-            lp_positions = client.extract_lp_positions(data)
+            all_lp_positions = client.extract_lp_positions(data)
             perp_positions = client.extract_perp_positions(data)
+            
+            # Filter LP positions by enabled protocols
+            enabled_protocols = config.get("enabled_protocols", ["Revert", "Uniswap3", "Uniswap4", "Dhedge"])
+            lp_positions = [pos for pos in all_lp_positions if pos.protocol in enabled_protocols]
             
             lp_balances = {}
             for pos in lp_positions:
