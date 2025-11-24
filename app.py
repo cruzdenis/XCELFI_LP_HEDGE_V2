@@ -945,9 +945,12 @@ def main():
             hyperliquid_data = assets_by_protocol.get("hyperliquid", {})
             hyperliquid_balance = float(hyperliquid_data.get("value", 0))
             
-            # Calculate percentage
-            if total_lp_value > 0:
-                balance_pct = (hyperliquid_balance / total_lp_value) * 100
+            # Calculate total portfolio value (LP + Hyperliquid)
+            total_portfolio_value = total_lp_value + hyperliquid_balance
+            
+            # Calculate percentage (Hyperliquid / Total Portfolio)
+            if total_portfolio_value > 0:
+                balance_pct = (hyperliquid_balance / total_portfolio_value) * 100
             else:
                 balance_pct = 0
             
@@ -970,13 +973,15 @@ def main():
                 recommendation = "Você tem capital ocioso na Hyperliquid. Considere realocar para LPs para aumentar retornos."
             
             # Display summary cards
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("🏬 Valor Total LP", f"${total_lp_value:,.2f}")
             with col2:
                 st.metric("🔵 Saldo Hyperliquid", f"${hyperliquid_balance:,.2f}")
             with col3:
-                st.metric("📊 Percentual", f"{balance_pct:.1f}%")
+                st.metric("💰 Total Portfólio", f"${total_portfolio_value:,.2f}")
+            with col4:
+                st.metric("📊 % Hyperliquid", f"{balance_pct:.1f}%")
             
             st.markdown("---")
             
