@@ -636,24 +636,135 @@ def main():
 
     # --- Proof of Reserves Tab ---
     with tab_proof_of_reserves:
-        st.header("🔐 Prova de Reservas (Hyperliquid)")
-        if 'portfolio_data' in st.session_state:
+        st.header("🔐 Prova de Reservas - Delta Neutral Hedge")
+        st.info("📊 Validação transparente de que as posições LP estão adequadamente hedgeadas com shorts na Hyperliquid.")
+        
+        if 'portfolio_data' not in st.session_state:
+            st.warning("⚠️ Por favor, execute 'Analisar Hedge' na aba Dashboard primeiro.")
+        else:
+            data = st.session_state.portfolio_data
             client = OctavClient(config["api_key"])
-            perp_positions = client.extract_perp_positions(st.session_state.portfolio_data)
             
-            if not perp_positions:
-                st.info("Nenhuma posição perpétua encontrada na Hyperliquid.")
+            # Extract positions
+            lp_positions = client.extract_lp_positions(data)
+            perp_positions = client.extract_perp_positions(data)
+            
+            # Aggregate LP balances
+            lp_balances = {}
+            for pos in lp_positions:
+                symbol = OctavClient.normalize_symbol(pos.token_symbol)
+                lp_balances[symbol] = lp_balances.get(symbol, 0) + pos.balance
+            
+            # Aggregate short balances
+            short_balances = {}
+            for pos in perp_positions:
+                if pos.size < 0:
+                    symbol = OctavClient.normalize_symbol(pos.symbol)
+                    short_balances[symbol] = short_balances.get(symbol, 0) + abs(pos.size)
+            
+            # Extract token prices
+            token_prices = {}
+            for pos in lp_positions:
+                symbol = OctavClient.normalize_symbol(pos.token_symbol)
+                token_prices[symbol] = pos.price
+            
+            # Get all tokens
+            all_tokens = set(lp_balances.keys()) | set(short_balances.keys())
+            
+            if not all_tokens:
+                st.info("✅ Nenhuma posição encontrada para validar.")
             else:
+                # --- Summary Cards ---
+                total_lp_value = sum(lp_balances.get(t, 0) * token_prices.get(t, 0) for t in all_tokens)
+                total_short_value = sum(short_balances.get(t, 0) * token_prices.get(t, 0) for t in all_tokens)
+                
+                if total_lp_value > 0:
+                    coverage_pct = (total_short_value / total_lp_value) * 100
+                else:
+                    coverage_pct = 0
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("💼 Valor Total LP", f"${total_lp_value:,.2f}")
+                with col2:
+                    st.metric("🛡️ Valor Total Short", f"${total_short_value:,.2f}")
+                with col3:
+                    coverage_color = "🟢" if 95 <= coverage_pct <= 105 else "🟡" if 90 <= coverage_pct <= 110 else "🔴"
+                    st.metric(f"{coverage_color} Cobertura de Hedge", f"{coverage_pct:.1f}%")
+                
+                st.markdown("---")
+                
+                # --- Detailed Breakdown ---
+                st.subheader("📊 Detalhamento por Token")
+                
+                proof_data = []
+                for token in sorted(all_tokens):
+                    lp_bal = lp_balances.get(token, 0)
+                    short_bal = short_balances.get(token, 0)
+                    price = token_prices.get(token, 0)
+                    
+                    lp_value = lp_bal * price
+                    short_value = short_bal * price
+                    
+                    if lp_value > 0:
+                        token_coverage = (short_value / lp_value) * 100
+                    else:
+                        token_coverage = 0 if short_value == 0 else 999  # Over-hedged with no LP
+                    
+                    # Determine status
+                    if 95 <= token_coverage <= 105:
+                        status = "✅ Adequado"
+                    elif 90 <= token_coverage <= 110:
+                        status = "🟡 Aceitável"
+                    elif token_coverage < 90:
+                        status = "⚠️ Sub-Hedge"
+                    else:
+                        status = "🔴 Sobre-Hedge"
+                    
+                    proof_data.append({
+                        "Token": token,
+                        "LP Balance": f"{lp_bal:.6f}",
+                        "Short Balance": f"{short_bal:.6f}",
+                        "LP Value (USD)": f"${lp_value:,.2f}",
+                        "Short Value (USD)": f"${short_value:,.2f}",
+                        "Cobertura": f"{token_coverage:.1f}%",
+                        "Status": status
+                    })
+                
                 import pandas as pd
-                df_perp = pd.DataFrame([{
-                    "Token": pos.symbol,
-                    "Tamanho": pos.size,
-                    "Valor USD": f"${pos.position_value:,.2f}",
-                    "P&L": f"${pos.open_pnl:,.2f}",
-                    "Margem": f"${pos.margin_used:,.2f}",
-                    "Alavancagem": pos.leverage
-                } for pos in perp_positions])
-                st.dataframe(df_perp, use_container_width=True)
+                df_proof = pd.DataFrame(proof_data)
+                st.dataframe(df_proof, use_container_width=True)
+                
+                st.markdown("---")
+                
+                # --- Hyperliquid Positions Detail ---
+                st.subheader("📊 Posições Hyperliquid (Detalhes)")
+                
+                if not perp_positions:
+                    st.info("Nenhuma posição perpétua encontrada na Hyperliquid.")
+                else:
+                    df_perp = pd.DataFrame([{
+                        "Token": pos.symbol,
+                        "Tamanho": f"{pos.size:.6f}",
+                        "Preço Marca": f"${pos.mark_price:,.2f}",
+                        "Valor USD": f"${pos.position_value:,.2f}",
+                        "P&L": f"${pos.open_pnl:,.2f}",
+                        "Margem": f"${pos.margin_used:,.2f}",
+                        "Alavancagem": pos.leverage
+                    } for pos in perp_positions])
+                    st.dataframe(df_perp, use_container_width=True)
+                
+                st.markdown("---")
+                
+                # --- Public Verification Link ---
+                st.subheader("🔗 Verificação Pública")
+                wallet_address = config.get("wallet_address", "")
+                if wallet_address:
+                    hyperliquid_link = f"https://app.hyperliquid.xyz/explorer/{wallet_address}"
+                    st.markdown(f"🔍 **Verificar posições na Hyperliquid:** [{wallet_address}]({hyperliquid_link})")
+                    st.caption("📌 Qualquer pessoa pode verificar as posições short diretamente no explorer da Hyperliquid.")
+                else:
+                    st.info("⚠️ Endereço da carteira não configurado.")
 
     # --- Footer ---
     st.markdown("---")
