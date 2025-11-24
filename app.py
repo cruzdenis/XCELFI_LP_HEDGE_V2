@@ -762,8 +762,12 @@ def main():
                 
                 # Add Hyperliquid total balance (equity)
                 hyperliquid_balance = float(data.get("total_perp_value", "0"))
+                st.write(f"DEBUG - Hyperliquid Balance: ${hyperliquid_balance:,.2f}")
+                st.write(f"DEBUG - Perp Positions Count: {len(perp_positions)}")
                 if hyperliquid_balance > 0:
                     protocol_values["Hyperliquid"] = hyperliquid_balance
+                else:
+                    st.warning("⚠️ Hyperliquid balance is 0 or not found in portfolio data.")
                 
                 # Calculate total portfolio value
                 total_portfolio_value = sum(protocol_values.values())
