@@ -507,7 +507,10 @@ def main():
             with col2:
                 st.metric("📈 NAV Atual", f"${current_nav:,.2f}" if current_nav else "N/A")
             
-            if not nav_snapshots and not current_nav:
+            # Check if we have any NAV data
+            has_sync_nav = any(h.get('nav') is not None for h in sync_history)
+            
+            if not nav_snapshots and not current_nav and not has_sync_nav:
                 st.info("📊 Nenhum dado de NAV disponível. Execute 'Analisar Hedge' no Dashboard ou importe dados históricos.")
             else:
                 # Prepare data for graphs
@@ -1192,6 +1195,40 @@ def main():
             st.info("Nenhum histórico de sincronização encontrado.")
         else:
             import pandas as pd
+            import plotly.graph_objects as go
+            
+            # Filter history with NAV values for graph
+            history_with_nav = [h for h in history if h.get('nav') is not None]
+            
+            if history_with_nav:
+                st.subheader("📈 Evolução do NAV")
+                df_nav = pd.DataFrame(history_with_nav)
+                df_nav['timestamp'] = pd.to_datetime(df_nav['timestamp'])
+                df_nav = df_nav.sort_values('timestamp')
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=df_nav['timestamp'],
+                    y=df_nav['nav'],
+                    mode='lines+markers',
+                    name='NAV Total',
+                    line=dict(color='#1f77b4', width=2),
+                    marker=dict(size=8)
+                ))
+                fig.update_layout(
+                    title="NAV Total ao Longo do Tempo (Sincronizações)",
+                    xaxis_title="Data",
+                    yaxis_title="NAV (USD)",
+                    hovermode='x unified',
+                    template="plotly_dark",
+                    height=400
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                
+                st.markdown("---")
+            
+            # Show full history table
+            st.subheader("📊 Tabela de Sincronizações")
             df_history = pd.DataFrame(history)
             df_history['timestamp'] = pd.to_datetime(df_history['timestamp'])
             st.dataframe(df_history, use_container_width=True)
