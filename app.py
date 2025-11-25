@@ -456,10 +456,10 @@ def main():
         import plotly.graph_objects as go
         import pandas as pd
         from datetime import datetime
-        
-        # Get NAV data
+                # Load NAV data
         nav_snapshots = config_mgr.load_nav_snapshots()
         share_transactions = config_mgr.load_share_transactions()
+        sync_history = config_mgr.load_history()  # Load sync history with NAV values
         
         # Calculate current NAV from portfolio data if available
         current_nav = None
@@ -514,18 +514,29 @@ def main():
                 # Prepare data for graphs
                 nav_data = []
                 
-                # Add historical snapshots
+                # Add manual NAV snapshots
                 for snap in nav_snapshots:
                     nav_data.append({
                         "timestamp": snap["timestamp"],
-                        "nav": snap["nav"]
+                        "nav": snap["nav"],
+                        "source": "manual"
                     })
+                
+                # Add NAV from sync history (automatic)
+                for sync in sync_history:
+                    if sync.get("nav") is not None:
+                        nav_data.append({
+                            "timestamp": sync["timestamp"],
+                            "nav": sync["nav"],
+                            "source": "sync"
+                        })
                 
                 # Add current NAV if available
                 if current_nav:
                     nav_data.append({
                         "timestamp": datetime.now().isoformat(),
-                        "nav": current_nav
+                        "nav": current_nav,
+                        "source": "current"
                     })
                 
                 # Sort by timestamp
@@ -854,10 +865,14 @@ def main():
                 
                 # Save data to session state
                 st.session_state.portfolio_data = portfolio
-                config_mgr.add_sync_history({"manual_sync": True})
+                
+                # Get NAV value
+                nav_value = float(portfolio.get('networth', 0)) if portfolio.get('networth') else None
+                
+                # Save sync history WITH NAV value
+                config_mgr.add_sync_history({"manual_sync": True}, nav_value=nav_value)
                 
                 # Auto-quote: Create NAV snapshot automatically
-                nav_value = float(portfolio.get('networth', 0)) if portfolio.get('networth') else None
                 if nav_value:
                     # Check if a recent snapshot exists (within last 5 minutes)
                     existing_snapshots = config_mgr.load_nav_snapshots()

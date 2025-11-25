@@ -203,8 +203,8 @@ class ConfigManager:
     
     # Wallet-specific data methods
     
-    def add_sync_history(self, summary, wallet_id=None):
-        """Add sync history entry for a wallet"""
+    def add_sync_history(self, summary, nav_value=None, wallet_id=None):
+        """Add sync history entry for a wallet with NAV value"""
         if wallet_id is None:
             wallet_id = self.get_active_wallet_id()
         
@@ -219,7 +219,8 @@ class ConfigManager:
         
         entry = {
             "timestamp": datetime.now().isoformat(),
-            "summary": summary
+            "summary": summary,
+            "nav": nav_value  # Save NAV value with sync history
         }
         
         if "sync_history" not in wallet:
