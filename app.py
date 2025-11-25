@@ -455,8 +455,7 @@ def main():
         
         import plotly.graph_objects as go
         import pandas as pd
-        from datetime import datetime
-                # Load NAV data
+        # Load NAV data
         nav_snapshots = config_mgr.load_nav_snapshots()
         share_transactions = config_mgr.load_share_transactions()
         sync_history = config_mgr.load_history()  # Load sync history with NAV values
