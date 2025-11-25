@@ -501,6 +501,13 @@ def main():
         with nav_tab1:
             st.subheader("📈 Evolução do NAV")
             
+            # Debug info
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("📋 Total de Snapshots", len(nav_snapshots))
+            with col2:
+                st.metric("📈 NAV Atual", f"${current_nav:,.2f}" if current_nav else "N/A")
+            
             if not nav_snapshots and not current_nav:
                 st.info("📊 Nenhum dado de NAV disponível. Execute 'Analisar Hedge' no Dashboard ou importe dados históricos.")
             else:
